@@ -785,6 +785,9 @@ export class TEVMIndexer {
             transactions: [],
 
             gasPriceEvents: [],
+            revisionEvents: [],
+            openWalletEvents: [],
+            createEvents: [],
 
             logsBloom: (new Bloom()).bitvector,
 

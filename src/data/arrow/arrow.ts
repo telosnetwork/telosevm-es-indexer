@@ -37,7 +37,10 @@ export const translatorDataContext: ArrowBatchContextDef = {
             {name: 'transactions',        type: 'struct', array: true},
             {name: 'account_deltas',      type: 'struct', array: true},
             {name: 'accountstate_deltas', type: 'struct', array: true},
-            {name: 'gas_price_events',    type: 'struct', array: true}
+            {name: 'gas_price_events',    type: 'struct', array: true},
+            {name: 'revision_events',     type: 'struct', array: true},
+            {name: 'openwallet_events',   type: 'struct', array: true},
+            {name: 'create_events',       type: 'struct', array: true}
         ]
 };
 
@@ -75,8 +78,6 @@ export class ArrowConnector extends Connector {
 
     private readonly context: ArrowBatchWriter | ArrowBatchReader;
 
-    private globalTxIndex: bigint = BigInt(0);
-
     constructor(config: ConnectorConfig, readOnly: boolean = false) {
         super(config);
 
@@ -100,6 +101,9 @@ export class ArrowConnector extends Connector {
         const accountstate = row[14].map(d => IndexedAccountStateDeltaSchema.parse(d));
 
         const gasPriceEvents = row[15];
+        const revisionEvents = row[16];
+        const openWalletEvents = row[17];
+        const createEvents = row[18];
 
         const bloom = row[9];
 
@@ -123,6 +127,9 @@ export class ArrowConnector extends Connector {
             transactions,
             logsBloom: bloom,
             gasPriceEvents,
+            revisionEvents,
+            openWalletEvents,
+            createEvents,
             deltas: {
                 account,
                 accountstate
@@ -156,7 +163,10 @@ export class ArrowConnector extends Connector {
             txs,
             accountDeltas,
             accountStateDeltas,
-            block.gasPriceEvents
+            block.gasPriceEvents,
+            block.revisionEvents,
+            block.openWalletEvents,
+            block.createEvents
         ];
 
         return blockRow;

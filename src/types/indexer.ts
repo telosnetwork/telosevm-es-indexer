@@ -175,6 +175,9 @@ export const IndexedBlockHeaderSchema = z.object({
 export const IndexedBlockSchema = IndexedBlockHeaderSchema.extend({
     transactions: z.array(IndexedTxSchema),
     gasPriceEvents: z.array(z.tuple([z.number(), z.string()])),
+    revisionEvents: z.array(z.tuple([z.number(), z.number()])),
+    openWalletEvents: z.array(z.tuple([z.number(), z.string(), z.string()])),
+    createEvents: z.array(z.tuple([z.number(), z.string(), z.string()])),
     logsBloom: uint8ArraySchema,
     deltas: z.object({
         account: z.array(IndexedAccountDeltaSchema),

@@ -310,7 +310,7 @@ export class TEVMIndexer {
             "eosio.msig"  // deferred transaction sig catch
         ];
         const actionWhitelist = [
-            "raw", "withdraw", "transfer", "doresources", // evm
+            "raw", "withdraw", "transfer", "doresources", "create", "openwallet", "setrevision", // evm
             "exec" // msig deferred sig catch
         ]
 
@@ -319,9 +319,12 @@ export class TEVMIndexer {
         const stateDeltas: IndexedAccountStateDelta[] = [];
 
         const configChanges: IndexedConfigDelta[] = [];
-        let resChangeIndex = 0;
+        let evmTxIndex = 0;
 
         const gasPriceEvents = [];
+        const revisionEvents = [];
+        const openWalletEvents =[];
+        const createEvents = [];
 
         let d = 0;
         block.deltas.forEach(delta => {
@@ -380,6 +383,9 @@ export class TEVMIndexer {
             const isRaw = isEvmContract && action.act.name === 'raw';
             const isWithdraw = isEvmContract && action.act.name === 'withdraw';
             const isDoResources = isEvmContract && action.act.name === 'doresources';
+            const isOpenWallet = isEvmContract && action.act.name === 'openwallet';
+            const isCreate = isEvmContract && action.act.name === 'create';
+            const isSetRevision = isEvmContract && action.act.name === 'setrevision';
 
             const isTokenContract = action.act.account === 'eosio.token';
             const isTransfer = isTokenContract && action.act.name === 'transfer';
@@ -404,10 +410,17 @@ export class TEVMIndexer {
 
             if (isDoResources) {
                 const resChangeDelta = configChanges.shift();
-               gasPriceEvents.push([resChangeIndex, resChangeDelta.gas_price]);
-            }
+                gasPriceEvents.push([evmTxIndex, resChangeDelta.gas_price]);
+            } else if (isSetRevision)
+                revisionEvents.push([evmTxIndex, actData.new_revision]);
 
-            if (isRaw)
+            else if (isOpenWallet)
+                openWalletEvents.push([evmTxIndex, actData.account, actData.address]);
+
+            else if (isCreate)
+                createEvents.push([evmTxIndex, actData.account, actData.data]);
+
+            else if (isRaw)
                 startTxTask('createEvm', params);
 
             else if (isWithdraw)
@@ -420,7 +433,7 @@ export class TEVMIndexer {
                 continue;
 
             actions.push(action);
-            resChangeIndex++;
+            evmTxIndex++;
         }
 
         evmTxs = await Promise.all(txTasks);
@@ -475,6 +488,9 @@ export class TEVMIndexer {
             transactionAmount: evmTransactions.length,
             transactions: evmTransactions,
             gasPriceEvents,
+            revisionEvents,
+            openWalletEvents,
+            createEvents,
 
             logsBloom: blockBloom.bitvector,
 
@@ -567,7 +583,7 @@ export class TEVMIndexer {
             actionWhitelist: {
                 'eosio.token': ['transfer'],
                 'eosio.msig': ['exec'],
-                'eosio.evm': ['raw', 'withdraw', "doresources"]
+                'eosio.evm': ['raw', 'withdraw', "doresources", "openwallet", "create", "setrevision"]
             },
             tableWhitelist: {
                 'eosio.evm': ['account', 'accountstate', 'config']

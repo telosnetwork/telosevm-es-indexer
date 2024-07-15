@@ -366,11 +366,11 @@ export class TEVMIndexer {
             );
         };
         for (const action of block.actions) {
-            const aDuplicate = actions.find(other => {
-                return other.receipt.act_digest === action.receipt.act_digest
-            })
-            if (aDuplicate)
-                continue;
+            // const aDuplicate = actions.find(other => {
+            //     return other.receipt.act_digest === action.receipt.act_digest
+            // })
+            // if (aDuplicate)
+            //     continue;
 
             if (!contractWhitelist.includes(action.act.account) ||
                 !actionWhitelist.includes(action.act.name))

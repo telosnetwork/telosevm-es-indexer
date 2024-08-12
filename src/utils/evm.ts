@@ -5,11 +5,11 @@ import RLP from "rlp";
 import {Bloom, encodeReceipt, TxReceipt} from "@ethereumjs/vm";
 import type {Log} from "@ethereumjs/evm";
 import {TransactionType} from "@ethereumjs/tx";
-import {JsonRpc} from "eosjs";
 import {Logger} from "winston";
 import {nameToUint64} from "./eosio.js";
 import {sleep} from "./indexer.js";
 import moment from "moment";
+import {APIClient, UInt64} from "@wharfkit/antelope";
 
 export function arrayToHex(array: Uint8Array) {
     if (!array)
@@ -200,7 +200,7 @@ export function isTxDeserializationError(obj: any): obj is TxDeserializationErro
 
 export async function queryAddress(
     accountName: string,
-    rpc: JsonRpc,
+    rpc: APIClient,
     logger: Logger
 ) {
     const acctInt = nameToUint64(accountName);
@@ -208,14 +208,14 @@ export async function queryAddress(
     let result = null;
     while (retry) {
         try {
-            result = await rpc.get_table_rows({
+            result = await rpc.v1.chain.get_table_rows({
                 code: 'eosio.evm',
                 scope: 'eosio.evm',
                 table: 'account',
                 key_type: 'i64',
-                index_position: 3,
-                lower_bound: acctInt,
-                upper_bound: acctInt,
+                index_position: 'tertiary',
+                lower_bound: UInt64.from(acctInt),
+                upper_bound: UInt64.from(acctInt),
                 limit: 1
             });
             if (result.rows.length == 1)
@@ -229,7 +229,7 @@ export async function queryAddress(
             logger.error(error);
             try {
                 await sleep(200);
-                await rpc.get_info();
+                await rpc.v1.chain.get_info();
                 logger.error(`seems get info succeded, queryAddress error is not network related, throw...`);
                 throw error;
             } catch (innerError) {

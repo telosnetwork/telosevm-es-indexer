@@ -1,5 +1,5 @@
 import RPCBroadcaster from '../publisher.js';
-import {IndexedBlockInfo, IndexerConfig, IndexerState} from '../types/indexer.js';
+import {IndexedBlockInfo, TranslatorConfig, IndexerState} from '../types/indexer.js';
 import {getTemplatesForChain} from './templates.js';
 
 import {Client, estypes} from '@elastic/elasticsearch';
@@ -229,7 +229,7 @@ export class BlockScroller {
 }
 
 export class Connector {
-    config: IndexerConfig;
+    config: TranslatorConfig;
     logger: Logger;
     elastic: Client;
     chainName: string;
@@ -253,7 +253,7 @@ export class Connector {
 
     events = new EventEmitter();
 
-    constructor(config: IndexerConfig, logger: Logger) {
+    constructor(config: TranslatorConfig, logger: Logger) {
         this.config = config;
         this.logger = logger;
         this.chainName = config.chainName;
@@ -904,21 +904,15 @@ export class Connector {
         const suffix = this.getSuffixForBlock(blockInfo.delta.block_num);
         const txIndex = `${this.chainName}-${this.config.elastic.subfix.transaction}-${suffix}`;
         const dtIndex = `${this.chainName}-${this.config.elastic.subfix.delta}-${suffix}`;
-        const errIndex = `${this.chainName}-${this.config.elastic.subfix.error}-${suffix}`;
 
         const txOperations = blockInfo.transactions.flatMap(
             doc => [{create: {_index: txIndex, _id: `${this.chainName}-tx-${currentBlock}-${doc['@raw'].trx_index}`}}, doc]);
 
-        const errOperations = blockInfo.errors.flatMap(
-            doc => [{index: {_index: errIndex}}, doc]);
-
         // const operations = [
-        //     ...errOperations,
         //     ...txOperations,
         //     {create: {_index: dtIndex, _id: `${this.chainName}-block-${currentBlock}`}}, blockInfo.delta
         // ];
         const operations = [];
-        Array.prototype.push.apply(operations, errOperations);
         Array.prototype.push.apply(operations, txOperations);
         operations.push({create: {_index: dtIndex, _id: `${this.chainName}-block-${currentBlock}`}}, blockInfo.delta);
 

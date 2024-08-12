@@ -1,4 +1,4 @@
-import {EosioEvmDeposit, EosioEvmRaw, EosioEvmWithdraw, StorageEvmTransaction} from "../types/evm.js";
+import {EosioEvmDeposit, EosioEvmRaw, EosioEvmWithdraw, StorageEvmTransaction} from "./types/evm.js";
 import {
     arrayToHex,
     generateUniqueVRS, hexStringToUint8Array, KEYWORD_STRING_TRIM_SIZE,
@@ -7,14 +7,14 @@ import {
     stdGasPrice,
     TxDeserializationError,
     ZERO_ADDR
-} from "../utils/evm.js";
-import {parseAsset} from "../utils/eosio.js";
+} from "./utils/evm.js";
+import {parseAsset} from "./utils/eosio.js";
 import {Logger} from "winston";
 import {addHexPrefix, bigIntToHex, isHexPrefixed, isValidAddress, unpadHex} from "@ethereumjs/util";
 import * as evm from "@ethereumjs/common";
 import {Bloom} from "@ethereumjs/vm";
 import {TEVMTransaction} from "telos-evm-custom-ds";
-import {JsonRpc} from "eosjs";
+import {APIClient} from "@wharfkit/antelope";
 
 export interface HandlerArguments {
     nativeBlockHash: string;
@@ -24,7 +24,11 @@ export interface HandlerArguments {
     consoleLog?: string;
 }
 
-export async function createEvm(common: evm.Common, args: HandlerArguments, logger: Logger): Promise<StorageEvmTransaction | TxDeserializationError> {
+export function createEvm(
+    args: HandlerArguments,
+    common: evm.Common,
+    logger: Logger
+): StorageEvmTransaction {
     const tx = args.tx as EosioEvmRaw;
     if (!args.consoleLog || args.consoleLog.length == 0) {
         throw new TxDeserializationError(
@@ -205,93 +209,103 @@ export async function createEvm(common: evm.Common, args: HandlerArguments, logg
     return txBody;
 }
 
-export async function createDeposit(common: evm.Common, rpc: JsonRpc, args: HandlerArguments, logger: Logger): Promise<StorageEvmTransaction | TxDeserializationError> {
-const tx = args.tx as EosioEvmDeposit;
-const quantity = parseAsset(tx.quantity);
+export async function createDeposit(
+    args: HandlerArguments,
+    common: evm.Common,
+    rpc: APIClient,
+    logger: Logger
+): Promise<StorageEvmTransaction> {
+    const tx = args.tx as EosioEvmDeposit;
+    const quantity = parseAsset(tx.quantity);
 
-let toAddr = null;
-if (!tx.memo.startsWith('0x')) {
-    const address = await queryAddress(tx.from, rpc, logger);
-
-    if (address) {
-        toAddr = `0x${address}`;
-    } else {
-        return new TxDeserializationError(
-            "User deposited without registering",
-            {
-                'nativeBlockHash': args.nativeBlockHash,
-                'tx': tx,
-                'block_num': args.blockNum
-            });
-    }
-} else {
-    if (isValidAddress(tx.memo))
-        toAddr = tx.memo;
-
-    else {
+    let toAddr = null;
+    if (!tx.memo.startsWith('0x')) {
         const address = await queryAddress(tx.from, rpc, logger);
 
-        if (!address) {
+        if (address) {
+            toAddr = `0x${address}`;
+        } else {
             throw new TxDeserializationError(
-                "User deposited to an invalid address",
+                "User deposited without registering",
                 {
                     'nativeBlockHash': args.nativeBlockHash,
                     'tx': tx,
                     'block_num': args.blockNum
                 });
         }
+    } else {
+        if (isValidAddress(tx.memo))
+            toAddr = tx.memo;
 
-        toAddr = `0x${address}`;
+        else {
+            const address = await queryAddress(tx.from, rpc, logger);
+
+            if (!address) {
+                throw new TxDeserializationError(
+                    "User deposited to an invalid address",
+                    {
+                        'nativeBlockHash': args.nativeBlockHash,
+                        'tx': tx,
+                        'block_num': args.blockNum
+                    });
+            }
+
+            toAddr = `0x${address}`;
+        }
     }
+
+    const [v, r, s] = generateUniqueVRS(
+        args.nativeBlockHash, ZERO_ADDR, args.trx_index);
+
+    const txParams = {
+        nonce: 0,
+        gasPrice: stdGasPrice,
+        gasLimit: stdGasLimit,
+        to: toAddr,
+        value: BigInt(quantity.amount) * BigInt('100000000000000'),
+        data: "0x",
+        v: v,
+        r: r,
+        s: s
+    };
+
+    const evmTx = TEVMTransaction.fromTxData(txParams, {common});
+    const inputData = '0x' + arrayToHex(evmTx.data);
+    return {
+        hash: '0x' + arrayToHex(evmTx.hash()),
+        from: ZERO_ADDR,
+        trx_index: args.trx_index,
+        block: args.blockNum,
+        block_hash: "",
+        to: evmTx.to?.toString(),
+        input_data: inputData,
+        input_trimmed: inputData.substring(0, KEYWORD_STRING_TRIM_SIZE),
+        value: evmTx.value?.toString(16),
+        value_d: tx.quantity,
+        nonce: evmTx.nonce?.toString(),
+        gas_price: evmTx.gasPrice?.toString(),
+        gas_limit: evmTx.gasLimit.toString(),
+        status: 1,
+        itxs: [],
+        epoch: 0,
+        createdaddr: "",
+        gasused: stdGasLimit.toString(),
+        gasusedblock: '',
+        charged_gas_price: '0',
+        output: "",
+        raw: evmTx.serialize(),
+        v: v.toString(),
+        r: unpadHex(bigIntToHex(r)),
+        s: unpadHex(bigIntToHex(s))
+    };
 }
 
-const [v, r, s] = generateUniqueVRS(
-    args.nativeBlockHash, ZERO_ADDR, args.trx_index);
-
-const txParams = {
-    nonce: 0,
-    gasPrice: stdGasPrice,
-    gasLimit: stdGasLimit,
-    to: toAddr,
-    value: BigInt(quantity.amount) * BigInt('100000000000000'),
-    data: "0x",
-    v: v,
-    r: r,
-    s: s
-};
-
-const evmTx = TEVMTransaction.fromTxData(txParams, {common});
-const inputData = '0x' + arrayToHex(evmTx.data);
-return {
-    hash: '0x' + arrayToHex(evmTx.hash()),
-    from: ZERO_ADDR,
-    trx_index: args.trx_index,
-    block: args.blockNum,
-    block_hash: "",
-    to: evmTx.to?.toString(),
-    input_data: inputData,
-    input_trimmed: inputData.substring(0, KEYWORD_STRING_TRIM_SIZE),
-    value: evmTx.value?.toString(16),
-    value_d: tx.quantity,
-    nonce: evmTx.nonce?.toString(),
-    gas_price: evmTx.gasPrice?.toString(),
-    gas_limit: evmTx.gasLimit.toString(),
-    status: 1,
-    itxs: [],
-    epoch: 0,
-    createdaddr: "",
-    gasused: stdGasLimit.toString(),
-    gasusedblock: '',
-    charged_gas_price: '0',
-    output: "",
-    raw: evmTx.serialize(),
-    v: v.toString(),
-    r: unpadHex(bigIntToHex(r)),
-    s: unpadHex(bigIntToHex(s))
-};
-}
-
-export async function createWithdraw(common: evm.Common, rpc: JsonRpc, args: HandlerArguments, logger: Logger): Promise<StorageEvmTransaction | TxDeserializationError> {
+export async function createWithdraw(
+    args: HandlerArguments,
+    common: evm.Common,
+    rpc: APIClient,
+    logger: Logger
+): Promise<StorageEvmTransaction> {
     const tx = args.tx as EosioEvmWithdraw;
     const address = await queryAddress(tx.to, rpc, logger);
 

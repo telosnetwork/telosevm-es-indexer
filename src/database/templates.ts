@@ -124,24 +124,6 @@ export function getTemplatesForChain(
         }
     };
 
-    const error = {
-        index_patterns: [`${chain}-${suffixConfig.error}-*`],
-        settings: {
-            index: {
-                ...indexSettings
-            }
-        },
-        mappings: {
-            properties: {
-                'timestamp': {'type': 'date', 'format': 'strict_date_optional_time||epoch_millis'},
-                'info': {'enabled': true},
-                'name': {'type': 'keyword'},
-                'stack': {'type': 'keyword'},
-                'message': {'type': 'keyword'},
-            }
-        }
-    };
-
     const fork = {
         index_patterns: [`${chain}-${suffixConfig.fork}-*`],
         settings: {
@@ -159,6 +141,6 @@ export function getTemplatesForChain(
     };
 
     return {
-        transaction, delta, error, fork
+        transaction, delta, fork
     }
 }

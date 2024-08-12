@@ -1,32 +1,22 @@
-import { IndexerConfig, DEFAULT_CONF } from './types/indexer.js';
-import { TEVMIndexer } from './indexer.js';
+import {TranslatorConfigSchema} from './types/indexer.js';
+import { TEVMTranslator } from './translator.js';
 import { readFileSync } from 'node:fs';
-import cloneDeep from 'lodash.clonedeep';
-import { mergeDeep } from './utils/misc.js';
 import { Command } from 'commander';
 
 const program = new Command();
 
 program
     .option('-c, --config [path to config.json]', 'Path to config.json file', 'config.json')
-    .option('-t, --trim-from [block num]', 'Delete blocks in db from [block num] onwards', undefined)
+    .option('-t, --trim-from [block num]', 'Trim blocks in db from [block num] onwards', undefined)
     .option('-s, --skip-integrity-check', 'Skip initial db check', false)
     .option('-o, --only-db-check', 'Perform initial db check and exit', false)
     .option('-p, --gaps-purge', 'In case db integrity check fails purge db from last valid block', false)
     .option('-S, --skip-start-block-check', 'Skip initial get_block query to configured endpoint', false)
     .option('-r, --skip-remote-check', 'Skip initial get_info query to configured remoteEndpoint', false)
-    .option(
-        '-R, --reindex-into [index prefix]',
-        'Use configured es index as source and regenerate data + hashes into a different index',
-        undefined
-    )
     .action(async (options) => {
-        const conf: IndexerConfig = cloneDeep(DEFAULT_CONF);
-
-        try {
-            const userConf = JSON.parse(readFileSync(options.config).toString());
-            mergeDeep(conf, userConf);
-        } catch (e) {}
+        const conf = TranslatorConfigSchema.parse(
+            JSON.parse(
+                readFileSync(options.config).toString()));
 
         if (options.skipIntegrityCheck)
             conf.runtime.skipIntegrityCheck = options.skipIntegrityCheck;
@@ -49,7 +39,7 @@ program
         if (options.trimFrom)
             conf.runtime.trimFrom = options.trimFrom ? parseInt(options.trimFrom, 10) : undefined;
 
-        const indexer = new TEVMIndexer(conf);
+        const indexer = new TEVMTranslator(conf);
         try {
             await indexer.launch();
         } catch (e) {

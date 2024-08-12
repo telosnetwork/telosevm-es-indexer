@@ -402,6 +402,19 @@
     hash.js "^1.0.0"
     tslib "^2.0.3"
 
+"@guilledk/state-history-reader@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@guilledk/state-history-reader/-/state-history-reader-0.3.0.tgz#4818a25f7b253e63669bb774380d990b7eb3edae"
+  integrity sha512-e92Lu0z3iYiq90ocvF0e97Lub0Zs/rtTKu05EsyEGcnMQqYeCyGITgNV17ZvQ66QsSv/MgWHTc3Je48NNJbZNw==
+  dependencies:
+    "@types/async" "^3.2.24"
+    "@wharfkit/antelope" "^1.0.10"
+    bufferutil "^4.0.8"
+    node-fetch "^3.3.0"
+    winston "^3.14.1"
+    ws "^8.13.0"
+    zod "^3.23.8"
+
 "@istanbuljs/load-nyc-config@^1.0.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@istanbuljs/load-nyc-config/-/load-nyc-config-1.1.0.tgz#fd3db1d59ecf7cf121e80650bb86712f9b55eced"
@@ -515,20 +528,6 @@
     workerpool "^9.0.4"
     ws "^8.13.0"
 
-"@telosnetwork/hyperion-sequential-reader@1.2.7-rc8":
-  version "1.2.7-rc8"
-  resolved "https://registry.yarnpkg.com/@telosnetwork/hyperion-sequential-reader/-/hyperion-sequential-reader-1.2.7-rc8.tgz#91487709dd12ec710b62b92644b839c5d78cff82"
-  integrity sha512-Dom/fJC8Q61BEdHyImWqEMRbTXwsBrueHSSljXlVenAhSCSDNjpVftnMtrHywWdLuO7wm7vKTgKl9QnakY/D1A==
-  dependencies:
-    "@greymass/eosio" "0.7.0"
-    async "^3.2.4"
-    bson "^6.2.0"
-    bufferutil "^4.0.8"
-    node-fetch "^3.3.0"
-    shm-store "^1.0.0-rc1"
-    workerpool "^9.0.4"
-    ws "^8.13.0"
-
 "@telosnetwork/telos-evm-custom-ds@1.0.2":
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/@telosnetwork/telos-evm-custom-ds/-/telos-evm-custom-ds-1.0.2.tgz#3ce80386fe561e7a065c36e523eb8a2935793b29"
@@ -538,6 +537,11 @@
     "@ethereumjs/common" "4.1.0"
     "@ethereumjs/tx" "5.1.0"
     rlp "3.0.0"
+
+"@types/async@^3.2.24":
+  version "3.2.24"
+  resolved "https://registry.yarnpkg.com/@types/async/-/async-3.2.24.tgz#3a96351047575bbcf2340541b2d955a35339608f"
+  integrity sha512-8iHVLHsCCOBKjCF2KwFe0p9Z3rfM9mL+sSP8btyR5vTjJRAqpBYD28/ZLgXPf0pjG1VxOvtCV/BgXkQbpSe8Hw==
 
 "@types/body-parser@*":
   version "1.19.5"
@@ -743,6 +747,18 @@
   version "3.4.3"
   resolved "https://registry.yarnpkg.com/@vue/shared/-/shared-3.4.3.tgz#01d54b32b9796c85c853c670d9395a813f23a8c2"
   integrity sha512-rIwlkkP1n4uKrRzivAKPZIEkHiuwY5mmhMJ2nZKCBLz8lTUlE73rQh4n1OnnMurXt1vcUNyH4ZPfdh8QweTjpQ==
+
+"@wharfkit/antelope@^1.0.10":
+  version "1.0.10"
+  resolved "https://registry.yarnpkg.com/@wharfkit/antelope/-/antelope-1.0.10.tgz#5c63d6b67a4b62038575cd86ef47edaa8d1f57dd"
+  integrity sha512-12m4nD6+ZZl+mwzySuFkeiJCOrbXQT6mqg9amr1l/JtRewRdxeN9QTsEoPjE5MCTXbJc84X51KCT71ysglse0Q==
+  dependencies:
+    bn.js "^4.11.9"
+    brorand "^1.1.0"
+    elliptic "^6.5.4"
+    hash.js "^1.0.0"
+    pako "^2.1.0"
+    tslib "^2.0.3"
 
 "JSONStream@npm:@search-dump/jsonstream@^1.4.0":
   version "1.5.0"
@@ -2583,6 +2599,18 @@ logform@^2.3.2, logform@^2.4.0:
     safe-stable-stringify "^2.3.1"
     triple-beam "^1.3.0"
 
+logform@^2.6.0, logform@^2.6.1:
+  version "2.6.1"
+  resolved "https://registry.yarnpkg.com/logform/-/logform-2.6.1.tgz#71403a7d8cae04b2b734147963236205db9b3df0"
+  integrity sha512-CdaO738xRapbKIMVn2m4F6KTj4j7ooJ8POVnebSgKo3KBz5axNXRAL7ZdRjIV6NOr2Uf4vjtRkxrFETOioCqSA==
+  dependencies:
+    "@colors/colors" "1.6.0"
+    "@types/triple-beam" "^1.3.2"
+    fecha "^4.2.0"
+    ms "^2.1.1"
+    safe-stable-stringify "^2.3.1"
+    triple-beam "^1.3.0"
+
 lossless-json@^1.0.5:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/lossless-json/-/lossless-json-1.0.5.tgz#26df1d7d52543a994df07f1b174cf5576fb1482b"
@@ -3020,6 +3048,11 @@ pako@2.0.3:
   resolved "https://registry.yarnpkg.com/pako/-/pako-2.0.3.tgz#cdf475e31b678565251406de9e759196a0ea7a43"
   integrity sha512-WjR1hOeg+kki3ZIOjaf4b5WVcay1jaliKSYiEaB1XzwhMQZJxRdQRv0V31EKBYlxb4T7SK3hjfc/jxyU64BoSw==
 
+pako@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/pako/-/pako-2.1.0.tgz#266cc37f98c7d883545d11335c00fbd4062c9a86"
+  integrity sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==
+
 parent-module@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/parent-module/-/parent-module-1.0.1.tgz#691d2709e78c79fae3a156622452d00762caaaa2"
@@ -3242,7 +3275,7 @@ raw-body@2.5.1:
     iconv-lite "0.4.24"
     unpipe "1.0.0"
 
-readable-stream@3, readable-stream@^3.4.0, readable-stream@^3.6.0:
+readable-stream@3, readable-stream@^3.4.0, readable-stream@^3.6.0, readable-stream@^3.6.2:
   version "3.6.2"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-3.6.2.tgz#56a9b36ea965c00c5a93ef31eb111a0f11056967"
   integrity sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==
@@ -4052,6 +4085,15 @@ winston-transport@^4.5.0:
     readable-stream "^3.6.0"
     triple-beam "^1.3.0"
 
+winston-transport@^4.7.0:
+  version "4.7.1"
+  resolved "https://registry.yarnpkg.com/winston-transport/-/winston-transport-4.7.1.tgz#52ff1bcfe452ad89991a0aaff9c3b18e7f392569"
+  integrity sha512-wQCXXVgfv/wUPOfb2x0ruxzwkcZfxcktz6JIMUaPLmcNhO4bZTwA/WtDWK74xV3F2dKu8YadrFv0qhwYjVEwhA==
+  dependencies:
+    logform "^2.6.1"
+    readable-stream "^3.6.2"
+    triple-beam "^1.3.0"
+
 winston@3.8.2:
   version "3.8.2"
   resolved "https://registry.yarnpkg.com/winston/-/winston-3.8.2.tgz#56e16b34022eb4cff2638196d9646d7430fdad50"
@@ -4085,6 +4127,23 @@ winston@^3.11.0:
     stack-trace "0.0.x"
     triple-beam "^1.3.0"
     winston-transport "^4.5.0"
+
+winston@^3.14.1:
+  version "3.14.1"
+  resolved "https://registry.yarnpkg.com/winston/-/winston-3.14.1.tgz#b296f2756e6b46d3b6faac5660d2af878fc3f666"
+  integrity sha512-CJi4Il/msz8HkdDfXOMu+r5Au/oyEjFiOZzbX2d23hRLY0narGjqfE5lFlrT5hfYJhPtM8b85/GNFsxIML/RVA==
+  dependencies:
+    "@colors/colors" "^1.6.0"
+    "@dabh/diagnostics" "^2.0.2"
+    async "^3.2.3"
+    is-stream "^2.0.0"
+    logform "^2.6.0"
+    one-time "^1.0.0"
+    readable-stream "^3.4.0"
+    safe-stable-stringify "^2.3.1"
+    stack-trace "0.0.x"
+    triple-beam "^1.3.0"
+    winston-transport "^4.7.0"
 
 workerpool@6.2.1:
   version "6.2.1"
@@ -4254,3 +4313,8 @@ zod@^3.22.4:
   version "3.22.4"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.22.4.tgz#f31c3a9386f61b1f228af56faa9255e845cf3fff"
   integrity sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==
+
+zod@^3.23.8:
+  version "3.23.8"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.8.tgz#e37b957b5d52079769fb8097099b592f0ef4067d"
+  integrity sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==

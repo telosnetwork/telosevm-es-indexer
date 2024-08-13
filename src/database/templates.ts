@@ -136,6 +136,7 @@ export function getTemplatesForChain(
                 'timestamp': {'type': 'date'},
                 'lastNonForked': {'type': 'long'},
                 'lastForked': {'type': 'long'},
+                'diagnostics': {'enabled': false}
             }
         }
     };

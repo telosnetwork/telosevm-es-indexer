@@ -808,6 +808,9 @@ export class TEVMTranslator {
         const lastNonForked = b.nativeBlockNumber - 1;
         const forkedAt = this.lastBlock;
 
+        const preCleanupPrevHash = this.prevHash;
+        const preCleanupLastBlock = this.lastBlock;
+
         this.logger.info(`got ${b.nativeBlockNumber} and expected ${this.lastBlock + 1}, chain fork detected. reverse all blocks which were affected`);
 
         await this._waitWriteTasks();
@@ -817,15 +820,38 @@ export class TEVMTranslator {
         this.logger.debug(`purged db of blocks newer than ${lastNonForked}, continue...`);
 
         // tweak variables used by ordering machinery
+        const preCleanupHistory = structuredClone(this.sequenceHistory);
         const {prevHash, index} = this.getOldHash(lastNonForked);
         this.sequenceHistory.splice(index + 1);
+        const postCleanupHistory = structuredClone(this.sequenceHistory);
         this.prevHash = prevHash;
         this.lastBlock = lastNonForked;
+
+        const diagnostics = {
+            state: {
+                head_block: this.headBlock,
+                pre: {
+                    prev_hash: preCleanupPrevHash,
+                    last_block: preCleanupLastBlock
+                },
+                post: {
+                    prev_hash: this.prevHash,
+                    last_block: this.lastBlock,
+                },
+                stall_count: this.stallCounter
+            },
+            history: {
+                pre_cleanup: preCleanupHistory,
+                post_cleanup: postCleanupHistory
+            },
+            reader: this.reader.diagnostics
+        }
 
         this.connector.forkCleanup(
             b.blockTimestamp,
             lastNonForked,
-            forkedAt
+            forkedAt,
+            diagnostics
         );
     }
 

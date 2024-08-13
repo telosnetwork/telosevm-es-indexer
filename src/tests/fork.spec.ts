@@ -42,6 +42,11 @@ describe('Mock Forks', () => {
 
         elasticContainer = await new ElasticsearchContainer()
             .withName('testcontainers-elasticsearch')
+            // .withEnvironment({
+            //     'xpack.security.enabled': 'false'
+            // })
+            .withWaitStrategy(
+                Wait.forLogMessage('Cluster health status changed from [YELLOW] to [GREEN]'))
             .start();
         console.log('launched elasticsearch.')
     });
@@ -55,9 +60,6 @@ describe('Mock Forks', () => {
             chainId: 41,
             startBlock,
             stopBlock: stopBlock,
-            // endpoint: `http://127.0.0.1:${chainHTTPPort}`,
-            // remoteEndpoint: `http://127.0.0.1:${chainHTTPPort}`,
-            // wsEndpoint: `ws://127.0.0.1:${chainSHIPPort}`,
             endpoint: `http://localhost:${mockerContainer.getMappedPort(chainHTTPPort)}`,
             remoteEndpoint: `http://localhost:${mockerContainer.getMappedPort(chainHTTPPort)}`,
             wsEndpoint: `ws://localhost:${mockerContainer.getMappedPort(chainSHIPPort)}`,

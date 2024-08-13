@@ -930,7 +930,8 @@ export class Connector {
     forkCleanup(
         timestamp: string,
         lastNonForked: number,
-        lastForked: number
+        lastForked: number,
+        diagnostics: any
     ) {
         // fix state flag
         this.lastPushed = lastNonForked;
@@ -961,7 +962,7 @@ export class Connector {
         const suffix = this.getSuffixForBlock(lastNonForked);
         const frkIndex = `${this.chainName}-${this.config.elastic.suffix.fork}-${suffix}`;
         this.opDrain.push({index: {_index: frkIndex}});
-        this.opDrain.push({timestamp, lastNonForked, lastForked});
+        this.opDrain.push({timestamp, lastNonForked, lastForked, diagnostics});
     }
 
     async writeBlocks() {

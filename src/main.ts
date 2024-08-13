@@ -1,4 +1,4 @@
-import {TranslatorConfigSchema} from './types/indexer.js';
+import {TranslatorConfigSchema} from './types/translator.js';
 import { TEVMTranslator } from './translator.js';
 import { readFileSync } from 'node:fs';
 import { Command } from 'commander';

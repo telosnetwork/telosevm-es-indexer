@@ -13,17 +13,21 @@ export const ConnectorConfigSchema = z.object({
     numberOfReplicas: z.number().default(0),
     refreshInterval: z.number().default(-1),
     codec: z.string().default('best_compression'),
-    subfix: z.object({
+    suffix: z.object({
         delta: z.string().default('delta-v1.5'),
         transaction: z.string().default('action-v1.5'),
         fork: z.string().default('fork-v1.5'),
+    }).default({
+        delta: 'delta-v1.5',
+        transaction: 'action-v1.5',
+        fork: 'fork-v1.5'
     }),
 });
 
 export const BroadcasterConfigSchema = z.object({
     wsHost: z.string().default('127.0.0.1'),
     wsPort: z.number().default(7300),
-});
+}).default({wsHost: '127.0.0.1', wsPort: 7300});
 
 export const TranslatorConfigSchema = z.object({
     logLevel: z.string().default('debug'),

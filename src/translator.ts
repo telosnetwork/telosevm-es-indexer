@@ -1,6 +1,6 @@
 import {readFileSync} from "node:fs";
 
-import {IndexedBlockInfo, TranslatorConfig, IndexerState, StartBlockInfo} from './types/indexer.js';
+import {IndexedBlockInfo, TranslatorConfig, IndexerState, StartBlockInfo} from './types/translator.js';
 
 import {createLogger, format, Logger, transports} from 'winston';
 
@@ -25,7 +25,7 @@ import EventEmitter from "events";
 import {packageInfo, sleep} from "./utils/indexer.js";
 
 import * as evm from "@ethereumjs/common";
-import {TEVMBlockHeader} from "telos-evm-custom-ds";
+import {TEVMBlockHeader} from "@telosnetwork/telos-evm-custom-ds";
 import {createDeposit, createEvm, createWithdraw, HandlerArguments} from "./transactions.js";
 
 import {clearInterval} from "timers";
@@ -48,13 +48,13 @@ export class TEVMTranslator {
     private reader: StateHistoryReader;  // websocket state history connector, deserializes nodeos protocol
     private readonly readerAbis: {account: string, abi: ABI}[];
 
-    private rpc: APIClient;
+    private readonly rpc: APIClient;
     private remoteRpc: APIClient;
     connector: Connector;  // custom elastic search db driver
 
     private prevHash: string;  // previous indexed block evm hash, needed by machinery (do not modify manualy)
     headBlock: number;
-    lastBlock: number;  // last block number that was succesfully pushed to db in order
+    lastBlock: number;  // last block number that was successfully pushed to db in order
 
     // debug status used to print statistics
     private pushedLastUpdate: number = 0;
@@ -472,8 +472,8 @@ export class TEVMTranslator {
             },
             tableWhitelist: {},
             irreversibleOnly: this.config.irreversibleOnly,
-            logLevel: (this.config.readerLogLevel || 'info').toLowerCase(),
-            maxMsgsInFlight: this.config.perf.maxMessagesInFlight || 10000,
+            logLevel: (this.config.readerLogLevel).toLowerCase(),
+            maxMsgsInFlight: this.config.perf.maxMessagesInFlight,
             maxPayloadMb: Math.floor(1024 * 1.5)
         }));
 
@@ -488,6 +488,7 @@ export class TEVMTranslator {
         this.reader.onError = (err) => {
             this.logger.error(`SHIP Reader error: ${err}`);
             this.logger.error(err.stack);
+            throw err;
         }
         this.reader.onBlock = this.processBlock.bind(this);
 
@@ -612,7 +613,7 @@ export class TEVMTranslator {
             'stateRoot': EMPTY_TRIE_BUF,
             'gasLimit': BLOCK_GAS_LIMIT,
             'timestamp': BigInt(genesisTimestamp),
-            'extraData': hexStringToUint8Array(genesisBlock.id)
+            'extraData': genesisBlock.id.array
         }, {common: this.common});
 
         const genesisHash = arrayToHex(genesisHeader.hash());
@@ -624,7 +625,7 @@ export class TEVMTranslator {
 
         // Init state tracking attributes
         this.prevHash = genesisHash;
-        this.lastBlock = genesisBlock.block_num;
+        this.lastBlock = genesisBlock.block_num.toNumber();
         this.connector.lastPushed = this.lastBlock;
 
         this.logger.info('ethereum genesis header: ');
@@ -632,17 +633,19 @@ export class TEVMTranslator {
 
         this.logger.info(`ethereum genesis hash: 0x${genesisHash}`);
 
+        const genesisHashHex = arrayToHex(genesisBlock.id.array);
+
         // if we are starting from genesis store block skeleton doc
         // for rpc to be able to find parent hash for fist block
         await this.connector.pushBlock({
             transactions: [],
             delta: {
                 '@timestamp': moment.utc(genesisBlock.timestamp).toISOString(),
-                block_num: genesisBlock.block_num,
+                block_num: genesisBlock.block_num.toNumber(),
                 '@global': {
                     block_num: genesisEvmBlockNum
                 },
-                '@blockHash': genesisBlock.id.toLowerCase(),
+                '@blockHash': genesisHashHex,
                 '@evmPrevBlockHash': removeHexPrefix(ZERO_HASH),
                 '@evmBlockHash': genesisHash,
                 "@receiptsRootHash": EMPTY_TRIE,
@@ -651,7 +654,7 @@ export class TEVMTranslator {
                 "gasLimit": BLOCK_GAS_LIMIT.toString(),
                 "size": "0"
             },
-            nativeHash: genesisBlock.id.toLowerCase(),
+            nativeHash: genesisHashHex,
             parentHash: '',
             receiptsRoot: '',
             blockBloom: ''
@@ -682,9 +685,10 @@ export class TEVMTranslator {
 
         if (this.reader) {
             try {
-                await this.reader.stop();
+                this.reader.stop();
             } catch (e) {
                 this.logger.warn(`error stopping reader: ${e.message}`);
+                throw e;
             }
         }
 
@@ -695,6 +699,7 @@ export class TEVMTranslator {
                 await this.connector.deinit();
             } catch (e) {
                 this.logger.warn(`error stopping connector: ${e.message}`);
+                throw e;
             }
         }
 
@@ -713,7 +718,7 @@ export class TEVMTranslator {
     /*
      * Poll remote rpc for genesis block, which is block previous to evm deployment
      */
-    private async getGenesisBlock() {
+    private async getGenesisBlock(): Promise<any> {
         let genesisBlock = null;
         while (genesisBlock == null) {
             try {

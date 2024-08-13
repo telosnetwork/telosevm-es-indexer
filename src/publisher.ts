@@ -1,7 +1,7 @@
 import uWS, {TemplatedApp} from "uWebSockets.js";
 import { v4 as uuidv4 } from 'uuid';
 
-import {BroadcasterConfig, IndexedBlockInfo} from "./types/indexer.js";
+import {BroadcasterConfig, IndexedBlockInfo} from "./types/translator";
 import {NEW_HEADS_TEMPLATE, numToHex} from "./utils/evm.js";
 import {Logger} from "winston";
 

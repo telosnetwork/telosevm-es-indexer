@@ -5,19 +5,6 @@ on: [push]
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    services:
-      elasticsearch:
-        image: elasticsearch:7.17.4
-        env:
-          discovery.type: single-node
-          xpack.security.enabled: "false"
-        ports:
-          - 9200:9200
-        options: >-
-          --health-cmd "curl http://localhost:9200"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
     - name: Checkout Repository
@@ -27,13 +14,10 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: '18'
+        cache: 'yarn'
 
-    - name: Unit Tests
-      run: npm run test-unit
-      env:
-        LOG_LEVEL: debug
+    - name: Build
+      run: yarn build
 
-    - name: Mock Tests
-      run: npm run test-mock
-      env:
-        LOG_LEVEL: debug
+    - name: Run mocha
+      run: yarn test

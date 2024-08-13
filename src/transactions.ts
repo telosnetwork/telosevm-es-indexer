@@ -13,7 +13,7 @@ import {Logger} from "winston";
 import {addHexPrefix, bigIntToHex, isHexPrefixed, isValidAddress, unpadHex} from "@ethereumjs/util";
 import * as evm from "@ethereumjs/common";
 import {Bloom} from "@ethereumjs/vm";
-import {TEVMTransaction} from "telos-evm-custom-ds";
+import {TEVMTransaction} from "@telosnetwork/telos-evm-custom-ds";
 import {APIClient} from "@wharfkit/antelope";
 
 export interface HandlerArguments {

@@ -24,7 +24,6 @@ describe('Test Container full sync', () => {
 
         elasticContainer = await new ElasticsearchContainer()
             .withName('testcontainers-elasticsearch')
-            .withReuse()
             // .withEnvironment({
             //     'xpack.security.enabled': 'false'
             // })
@@ -61,6 +60,7 @@ describe('Test Container full sync', () => {
 
     after(async () => {
         leapContainer && (await leapContainer.stop());
+        elasticContainer && (await elasticContainer.stop());
     });
 
 });

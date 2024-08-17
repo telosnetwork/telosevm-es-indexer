@@ -42,6 +42,7 @@ describe('Mock Forks', () => {
 
         elasticContainer = await new ElasticsearchContainer()
             .withName('testcontainers-elasticsearch')
+            .withReuse()
             // .withEnvironment({
             //     'xpack.security.enabled': 'false'
             // })

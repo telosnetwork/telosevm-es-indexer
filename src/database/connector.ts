@@ -1013,7 +1013,7 @@ export class Connector {
         }
         this.logger.info(`drained ${this.opDrain.length} operations.`);
         if (this.isBroadcasting) {
-            this.logger.info(`broadcasting ${this.opDrain.length} blocks...`)
+            this.logger.info(`broadcasting ${this.blockDrain.length} blocks...`)
 
             for (const block of this.blockDrain)
                 this.broadcast.broadcastBlock(block);

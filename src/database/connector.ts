@@ -8,7 +8,7 @@ import {
     StorageEosioDelta,
     StorageEosioDeltaSchema, StorageEosioGenesisDeltaSchema
 } from '../types/evm.js';
-import {Logger} from "winston";
+import {createLogger, format, Logger} from "winston";
 import EventEmitter from "events";
 
 
@@ -251,9 +251,17 @@ export class Connector {
 
     events = new EventEmitter();
 
-    constructor(config: TranslatorConfig, logger: Logger) {
+    constructor(config: TranslatorConfig, logger?: Logger) {
         this.config = config;
-        this.logger = logger;
+        if (logger)
+            this.logger = logger;
+        else {
+            const loggingOptions = {
+                exitOnError: false,
+                level: 'error',
+            }
+            this.logger = createLogger(loggingOptions);
+        }
         this.chainName = config.chainName;
         this.elastic = new Client(config.elastic);
 

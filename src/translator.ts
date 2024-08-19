@@ -603,7 +603,7 @@ export class TEVMTranslator {
         const genesisBlock = await this.getGenesisBlock();
 
         // number of seconds since epoch
-        const genesisTimestamp = moment.utc(genesisBlock.timestamp).unix();
+        const genesisTimestamp = moment.utc(genesisBlock.timestamp.toString()).unix();
 
         // genesis evm block num
         const genesisEvmBlockNum = genesisBlock.block_num - this.config.evmBlockDelta;
@@ -640,7 +640,7 @@ export class TEVMTranslator {
         await this.connector.pushBlock({
             transactions: [],
             delta: {
-                '@timestamp': moment.utc(genesisBlock.timestamp).toISOString(),
+                '@timestamp': genesisBlock.timestamp.toString(),
                 block_num: genesisBlock.block_num.toNumber(),
                 '@global': {
                     block_num: genesisEvmBlockNum

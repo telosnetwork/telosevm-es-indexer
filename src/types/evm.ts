@@ -1,5 +1,5 @@
 import {isValidAddress} from "@ethereumjs/util";
-import {Asset} from "@greymass/eosio";
+import {Asset} from "@wharfkit/antelope";
 import {
     isInteger,
     isValidAntelopeHash,

@@ -1,1 +1,0 @@
-import {buildDocker} from "./utils.mjs"; await buildDocker('main', '.');

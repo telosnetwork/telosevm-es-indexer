@@ -1,5 +1,5 @@
 import RPCBroadcaster from '../publisher.js';
-import {IndexedBlockInfo, IndexerConfig, IndexerState} from '../types/indexer.js';
+import {IndexedBlockInfo, TranslatorConfig, IndexerState} from '../types/translator.js';
 import {getTemplatesForChain} from './templates.js';
 
 import {Client, estypes} from '@elastic/elasticsearch';
@@ -8,7 +8,7 @@ import {
     StorageEosioDelta,
     StorageEosioDeltaSchema, StorageEosioGenesisDeltaSchema
 } from '../types/evm.js';
-import {Logger} from "winston";
+import {createLogger, format, Logger} from "winston";
 import EventEmitter from "events";
 
 
@@ -229,7 +229,7 @@ export class BlockScroller {
 }
 
 export class Connector {
-    config: IndexerConfig;
+    config: TranslatorConfig;
     logger: Logger;
     elastic: Client;
     chainName: string;
@@ -245,17 +245,23 @@ export class Connector {
     writeCounter: number = 0;
     lastDeltaIndexSuff: number = undefined;
     lastActionIndexSuff: number = undefined;
-    private deltaIndexCache: estypes.CatIndicesIndicesRecord[] = undefined;
-    private actionIndexCache: estypes.CatIndicesIndicesRecord[] = undefined;
 
     broadcast: RPCBroadcaster;
     isBroadcasting: boolean = false;
 
     events = new EventEmitter();
 
-    constructor(config: IndexerConfig, logger: Logger) {
+    constructor(config: TranslatorConfig, logger?: Logger) {
         this.config = config;
-        this.logger = logger;
+        if (logger)
+            this.logger = logger;
+        else {
+            const loggingOptions = {
+                exitOnError: false,
+                level: 'error',
+            }
+            this.logger = createLogger(loggingOptions);
+        }
         this.chainName = config.chainName;
         this.elastic = new Client(config.elastic);
 
@@ -275,7 +281,7 @@ export class Connector {
     async init() {
         const indexConfig: ConfigInterface = getTemplatesForChain(
             this.chainName,
-            this.config.elastic.subfix,
+            this.config.elastic.suffix,
             this.config.elastic.numberOfShards,
             this.config.elastic.numberOfReplicas,
             this.config.elastic.refreshInterval,
@@ -330,7 +336,7 @@ export class Connector {
         // if (this.deltaIndexCache) return this.deltaIndexCache;
 
         const deltaIndices: estypes.CatIndicesResponse = await this.elastic.cat.indices({
-            index: `${this.chainName}-${this.config.elastic.subfix.delta}-*`,
+            index: `${this.chainName}-${this.config.elastic.suffix.delta}-*`,
             format: 'json'
         });
         deltaIndices.sort((a, b) => {
@@ -361,7 +367,7 @@ export class Connector {
         // if (this.actionIndexCache) return this.actionIndexCache;
 
         const actionIndices: estypes.CatIndicesResponse = await this.elastic.cat.indices({
-            index: `${this.chainName}-${this.config.elastic.subfix.transaction}-*`,
+            index: `${this.chainName}-${this.config.elastic.suffix.transaction}-*`,
             format: 'json'
         });
         actionIndices.sort((a, b) => {
@@ -416,7 +422,7 @@ export class Connector {
         const suffix = this.getSuffixForBlock(blockNum);
         try {
             const result = await this.elastic.search({
-                index: `${this.chainName}-${this.config.elastic.subfix.delta}-${suffix}`,
+                index: `${this.chainName}-${this.config.elastic.suffix.delta}-${suffix}`,
                 query: {
                     match: {
                         block_num: {
@@ -550,7 +556,7 @@ export class Connector {
 
     async runHistogramGapCheck(lower: number, upper: number, interval: number): Promise<any> {
         const results = await this.elastic.search<any, any>({
-            index: `${this.config.chainName}-${this.config.elastic.subfix.delta}-*`,
+            index: `${this.config.chainName}-${this.config.elastic.suffix.delta}-*`,
             size: 0,
             body: {
                 query: {
@@ -595,7 +601,7 @@ export class Connector {
 
     async findDuplicateDeltas(lower: number, upper: number): Promise<number[]> {
         const results = await this.elastic.search<any, any>({
-            index: `${this.config.chainName}-${this.config.elastic.subfix.delta}-*`,
+            index: `${this.config.chainName}-${this.config.elastic.suffix.delta}-*`,
             size: 0,
             body: {
                 query: {
@@ -633,7 +639,7 @@ export class Connector {
 
     async findDuplicateActions(lower: number, upper: number): Promise<number[]> {
         const results = await this.elastic.search<any, any>({
-            index: `${this.config.chainName}-${this.config.elastic.subfix.transaction}-*`,
+            index: `${this.config.chainName}-${this.config.elastic.suffix.transaction}-*`,
             size: 0,
             body: {
                 query: {
@@ -793,8 +799,8 @@ export class Connector {
 
     async _deleteBlocksInRange(startBlock: number, endBlock: number) {
         const targetSuffix = this.getSuffixForBlock(endBlock);
-        const deltaIndex = `${this.chainName}-${this.config.elastic.subfix.delta}-${targetSuffix}`;
-        const actionIndex = `${this.chainName}-${this.config.elastic.subfix.transaction}-${targetSuffix}`;
+        const deltaIndex = `${this.chainName}-${this.config.elastic.suffix.delta}-${targetSuffix}`;
+        const actionIndex = `${this.chainName}-${this.config.elastic.suffix.transaction}-${targetSuffix}`;
 
         try {
             await this._deleteFromIndex(deltaIndex, 'block_num', startBlock, endBlock);
@@ -858,7 +864,7 @@ export class Connector {
         const deleteList = [];
 
         const deltaIndices = await this.elastic.cat.indices({
-            index: `${this.config.chainName}-${this.config.elastic.subfix.delta}-*`,
+            index: `${this.config.chainName}-${this.config.elastic.suffix.delta}-*`,
             format: 'json'
         });
 
@@ -867,7 +873,7 @@ export class Connector {
                 deleteList.push(deltaIndex.index);
 
         const actionIndices = await this.elastic.cat.indices({
-            index: `${this.config.chainName}-${this.config.elastic.subfix.transaction}-*`,
+            index: `${this.config.chainName}-${this.config.elastic.suffix.transaction}-*`,
             format: 'json'
         });
 
@@ -902,23 +908,17 @@ export class Connector {
             throw new Error(`Expected: ${this.lastPushed + 1} and got ${currentBlock}`);
 
         const suffix = this.getSuffixForBlock(blockInfo.delta.block_num);
-        const txIndex = `${this.chainName}-${this.config.elastic.subfix.transaction}-${suffix}`;
-        const dtIndex = `${this.chainName}-${this.config.elastic.subfix.delta}-${suffix}`;
-        const errIndex = `${this.chainName}-${this.config.elastic.subfix.error}-${suffix}`;
+        const txIndex = `${this.chainName}-${this.config.elastic.suffix.transaction}-${suffix}`;
+        const dtIndex = `${this.chainName}-${this.config.elastic.suffix.delta}-${suffix}`;
 
         const txOperations = blockInfo.transactions.flatMap(
             doc => [{create: {_index: txIndex, _id: `${this.chainName}-tx-${currentBlock}-${doc['@raw'].trx_index}`}}, doc]);
 
-        const errOperations = blockInfo.errors.flatMap(
-            doc => [{index: {_index: errIndex}}, doc]);
-
         // const operations = [
-        //     ...errOperations,
         //     ...txOperations,
         //     {create: {_index: dtIndex, _id: `${this.chainName}-block-${currentBlock}`}}, blockInfo.delta
         // ];
         const operations = [];
-        Array.prototype.push.apply(operations, errOperations);
         Array.prototype.push.apply(operations, txOperations);
         operations.push({create: {_index: dtIndex, _id: `${this.chainName}-block-${currentBlock}`}}, blockInfo.delta);
 
@@ -938,7 +938,8 @@ export class Connector {
     forkCleanup(
         timestamp: string,
         lastNonForked: number,
-        lastForked: number
+        lastForked: number,
+        diagnostics: any
     ) {
         // fix state flag
         this.lastPushed = lastNonForked;
@@ -967,9 +968,9 @@ export class Connector {
 
         // write information about fork event
         const suffix = this.getSuffixForBlock(lastNonForked);
-        const frkIndex = `${this.chainName}-${this.config.elastic.subfix.fork}-${suffix}`;
+        const frkIndex = `${this.chainName}-${this.config.elastic.suffix.fork}-${suffix}`;
         this.opDrain.push({index: {_index: frkIndex}});
-        this.opDrain.push({timestamp, lastNonForked, lastForked});
+        this.opDrain.push({timestamp, lastNonForked, lastForked, diagnostics});
     }
 
     async writeBlocks() {
@@ -985,12 +986,10 @@ export class Connector {
         const lastAdjusted = Math.floor(last / this.config.elastic.docsPerIndex);
 
         if (lastAdjusted !== this.lastDeltaIndexSuff) {
-            this.deltaIndexCache = undefined;
             this.lastDeltaIndexSuff = lastAdjusted;
         }
 
         if (lastAdjusted !== this.lastActionIndexSuff) {
-            this.actionIndexCache = undefined;
             this.lastActionIndexSuff = lastAdjusted;
         }
 
@@ -1022,7 +1021,7 @@ export class Connector {
         }
         this.logger.info(`drained ${this.opDrain.length} operations.`);
         if (this.isBroadcasting) {
-            this.logger.info(`broadcasting ${this.opDrain.length} blocks...`)
+            this.logger.info(`broadcasting ${this.blockDrain.length} blocks...`)
 
             for (const block of this.blockDrain)
                 this.broadcast.broadcastBlock(block);

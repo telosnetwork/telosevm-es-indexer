@@ -67,11 +67,12 @@ export function parseAsset(s: string) {
 }
 
 
-import { JsonRpc } from 'eosjs';
+import fetch from 'node-fetch';
+import {APIClient, FetchProvider} from "@wharfkit/antelope";
 
-// @ts-ignore
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 export function getRPCClient(endpoint: string) {
-    return new JsonRpc(endpoint, { fetch });
+    return new APIClient({
+        provider: new FetchProvider(endpoint, {fetch})
+    });
 }

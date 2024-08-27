@@ -1,9 +1,0 @@
-network.host: 0.0.0.0
-
-http.port: 9200
-
-discovery.type: single-node
-
-path.data: /home/elasticsearch/data
-
-search.max_open_scroll_context: 50

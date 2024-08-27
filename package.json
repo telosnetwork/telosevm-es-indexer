@@ -21,7 +21,7 @@
     "@ethereumjs/tx": "5.1.0",
     "@ethereumjs/util": "9.0.1",
     "@ethereumjs/vm": "7.1.0",
-    "@guilledk/state-history-reader": "0.3.3",
+    "@guilledk/state-history-reader": "0.3.4",
     "@telosnetwork/telos-evm-custom-ds": "1.0.3",
     "@wharfkit/antelope": "^1.0.10",
     "bufferutil": "^4.0.8",

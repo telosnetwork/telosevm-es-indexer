@@ -99,15 +99,6 @@ export class TEVMTranslator {
 
         process.on('unhandledRejection', error => {
             // @ts-ignore
-            if (error.message == 'Worker terminated')
-                return;
-            this.logger.error('Unhandled Rejection');
-            try {
-                this.logger.error(JSON.stringify(error, null, 4));
-            } catch (e) {
-
-            }
-            // @ts-ignore
             this.logger.error(error.message);
             // @ts-ignore
             this.logger.error(error.stack);

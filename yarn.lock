@@ -207,10 +207,10 @@
     ws "^8.14.2"
     zod "^3.23.8"
 
-"@guilledk/state-history-reader@0.3.3":
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/@guilledk/state-history-reader/-/state-history-reader-0.3.3.tgz#093f989660a66ae80788b98298e8412ec4050455"
-  integrity sha512-zHhd9SAve9NZuZO5RSbo6FBj2XOfAvyvszBgvx8NAwnUMs/RGv12JgCvw+p9tLEmSahbAiRd67xwiFTPUZ2dqA==
+"@guilledk/state-history-reader@0.3.4":
+  version "0.3.4"
+  resolved "https://registry.yarnpkg.com/@guilledk/state-history-reader/-/state-history-reader-0.3.4.tgz#05d01501dbfd646d46d309c4b33adbad2dcdf0bd"
+  integrity sha512-dGHn+cjbaIrTH9F37ssraNkr02xL0jIPPn3/TOJWfc1itVXXbmoHE//udvZj3IkIQejQH/Xy9mfAr5MwooWkKw==
   dependencies:
     "@types/async" "^3.2.24"
     "@wharfkit/antelope" "^1.0.10"

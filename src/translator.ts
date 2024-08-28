@@ -24,8 +24,6 @@ import EventEmitter from "events";
 
 import {packageInfo, sleep} from "./utils/indexer.js";
 
-import * as evm from "@ethereumjs/common";
-import {TEVMBlockHeader} from "@telosnetwork/telos-evm-custom-ds";
 import {createDeposit, createEvm, createWithdraw, HandlerArguments} from "./transactions.js";
 
 import {clearInterval} from "timers";
@@ -35,6 +33,8 @@ import {
     StateHistoryReaderOptionsSchema,
     ThroughputMeasurer
 } from "@guilledk/state-history-reader";
+import {TEVMBlockHeader} from "telos-evm-custom-ds";
+import {Chain, Common, Hardfork} from "@ethereumjs/common";
 
 
 export class TEVMTranslator {
@@ -70,7 +70,7 @@ export class TEVMTranslator {
 
     events = new EventEmitter();
 
-    private readonly common: evm.Common;
+    private readonly common: Common;
     private _isRestarting: boolean = false;
 
     private sequenceHistory: StorageEosioDelta[] = [];
@@ -79,10 +79,10 @@ export class TEVMTranslator {
         this.startBlock = config.startBlock;
         this.stopBlock = config.stopBlock;
         this.config = config;
-        this.common = evm.Common.custom({
+        this.common = Common.custom({
             chainId: this.config.chainId,
-            defaultHardfork: evm.Hardfork.Istanbul
-        }, {baseChain: evm.Chain.Mainnet});
+            defaultHardfork: Hardfork.London
+        }, {baseChain: Chain.Mainnet});
 
         this.rpc = getRPCClient(config.endpoint);
         this.remoteRpc = getRPCClient(config.remoteEndpoint);
@@ -180,6 +180,7 @@ export class TEVMTranslator {
             'gasUsed': blockApplyInfo.gasUsed,
             'timestamp': BigInt(blockTimestamp.unix()),
             'extraData': hexStringToUint8Array(block.nativeBlockHash)
+
         }, {common: this.common});
 
         const currentBlockHash = arrayToHex(blockHeader.hash());

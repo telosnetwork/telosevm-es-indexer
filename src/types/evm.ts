@@ -48,6 +48,11 @@ export const InteralEvmTransactionSchema = z.object({
     extra: z.any()
 });
 
+export const AccessList = z.array(z.object({
+    address: z.string(),
+    storageKeys: z.array(z.string())
+}))
+
 export const StorageEvmTransactionSchema = z.object({
     hash: z.string().refine(obj => isValidEVMHash(obj), { message: "Invalid EVM hash" }),
     from: z.string().optional().refine(obj => isValidAddress(obj) || obj === undefined, { message: "Invalid address" }),
@@ -76,6 +81,14 @@ export const StorageEvmTransactionSchema = z.object({
     gasused: z.string().refine(isInteger, { message: "Invalid integer" }),
     gasusedblock: z.string().refine(isInteger, { message: "Invalid integer" }),
     charged_gas_price: z.string().refine(isInteger, { message: "Invalid integer" }),
+    // EIP 1559 & 4844
+    max_priority_fee_per_gas: z.string().optional(),
+    max_fee_per_gas: z.string().optional(),
+    // EIP 1559 & 2930 & 4844
+    access_list: AccessList.optional(),
+    // EIP 4844
+    max_fee_per_blob_gas: z.string().optional(),
+    blob_versioned_hashes: z.array(z.string()).optional(),
     output: z.string(),
     logs: z.array(z.object({
         address: z.string(),

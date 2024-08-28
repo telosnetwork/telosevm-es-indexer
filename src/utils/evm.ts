@@ -87,7 +87,7 @@ export function generateUniqueVRS(
     const r = blockHashBI + trxIndexBI;
     const s = BigInt(
         addHexPrefix(
-            removeHexPrefix(sender.toLowerCase()).padEnd(64, '0')
+            removeHexPrefix(sender.toLowerCase()).padEnd(64, 'f')
         )
     );
 

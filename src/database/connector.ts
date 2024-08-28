@@ -512,11 +512,7 @@ export class Connector {
 
             let scrollId = result._scroll_id;
             while (result.hits.hits.length) {
-                try {
-                    result.hits.hits.forEach(hit => hits.push(StorageEosioActionSchema.parse(hit._source)));
-                } catch (e) {
-                    throw new Error("parsing error");
-                }
+                result.hits.hits.forEach(hit => hits.push(hit._source));
                 result = await this.elastic.scroll({
                     scroll_id: scrollId,
                     scroll: '1s'
@@ -529,6 +525,7 @@ export class Connector {
         } catch (e) {
             this.logger.error(`connector: elastic error when getting transactions in range:`);
             this.logger.error(e.message);
+            throw e;
         }
 
         return hits;
@@ -1040,6 +1037,18 @@ export class Connector {
         });
 
         // if (global.gc) {global.gc();}
+    }
+
+    async dumpAll(from: number, to: number): Promise<{blocks: StorageEosioDelta[], actions: StorageEosioAction[]}> {
+        const blocks = [];
+        const scroller = await this.blockScroll({from, to});
+        for await (const scrollResult of scroller) {
+            blocks.push(...scrollResult);
+        }
+
+        const actions = await this.getTransactionsForRange(from, to);
+
+        return { blocks, actions };
     }
 
     async blockScroll(params: {

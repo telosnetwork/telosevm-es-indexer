@@ -3,10 +3,8 @@ import {TranslatorConfig, TranslatorConfigSchema} from "../types/translator.js";
 import {TEVMTranslator} from "../translator.js";
 import {ElasticsearchContainer, StartedElasticsearchContainer} from "@testcontainers/elasticsearch";
 import {Connector} from "../database/connector.js";
-import fs from "node:fs";
 import {expect} from "chai";
-import path from "node:path";
-import {fileURLToPath} from "node:url";
+import {loadValidationData} from "./utils.js";
 
 describe('Test Container full sync', () => {
     let chainHTTPPort = 8888;
@@ -68,13 +66,23 @@ describe('Test Container full sync', () => {
         let conn = new Connector(config);
         let data = await conn.dumpAll(startBlock, stopBlock);
 
-        const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
+        let validationData = loadValidationData();
 
-        let validActions = fs.readFileSync(path.join(TESTS_DIR, "testcontainer-actions-v1.5.json")).toString();
-        let validDeltas = fs.readFileSync(path.join(TESTS_DIR, "testcontainer-deltas-v1.5.json")).toString();
+        for (const [i, action] of data.actions.entries()) {
+            const validAction = validationData.actions[i];
+            expect(
+                action,
+                `failed action validation ${action["@raw"].block}::${action["@raw"].trx_index}`
+            ).to.be.deep.eq(validAction);
+        }
 
-        expect(validActions).to.be.eq(JSON.stringify(data.actions, null, 4));
-        expect(validDeltas).to.be.eq(JSON.stringify(data.blocks, null, 4));
+        for (const [i, block] of data.blocks.entries()) {
+            const validBlock = validationData.blocks[i];
+            expect(
+                block,
+                `failed block validation ${block["@global"].block_num}`
+            ).to.be.deep.eq(validBlock);
+        }
     });
 
     after(async () => {

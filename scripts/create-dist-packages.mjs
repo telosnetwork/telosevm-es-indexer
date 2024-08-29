@@ -14,12 +14,13 @@ function makeDirectory(directoryPath) {
     }
 }
 
-makeDirectory(path.join(SCRIPTS_DIR, '../build/tests/resources'));
+makeDirectory(path.join(SCRIPTS_DIR, '../build/tests'));
 
-// include package in build
-const src = path.join(SCRIPTS_DIR, '../package.json');
-const dest = path.join(SCRIPTS_DIR, '../build/package.json');
+// include package.json in build
+copyFileSync(path.join(SCRIPTS_DIR, '../package.json'), path.join(SCRIPTS_DIR, '../build/package.json'));
 
-copyFileSync(src, dest);
+// include validation data
+copyFileSync(path.join(SCRIPTS_DIR, '../src/tests/testcontainer-actions-v1.5.json'), path.join(SCRIPTS_DIR, '../build/tests/testcontainer-actions-v1.5.json'));
+copyFileSync(path.join(SCRIPTS_DIR, '../src/tests/testcontainer-deltas-v1.5.json'), path.join(SCRIPTS_DIR, '../build/tests/testcontainer-deltas-v1.5.json'));
 
 

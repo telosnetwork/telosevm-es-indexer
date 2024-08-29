@@ -15,7 +15,7 @@ import {Bloom} from "@ethereumjs/vm";
 import {APIClient} from "@wharfkit/antelope";
 import {fromSerializedTEVMData, TEVMTransaction, TEVMTransactionTypes} from "telos-evm-custom-ds";
 import {isAccessListEIP2930Tx, isBlobEIP4844Tx, isFeeMarketEIP1559Tx, isLegacyTx} from "@ethereumjs/tx";
-import {AccessList, Common} from "@ethereumjs/common";
+import {AccessList, Common, Hardfork} from "@ethereumjs/common";
 
 export interface HandlerArguments {
     nativeBlockHash: string;
@@ -90,7 +90,11 @@ export function createEvm(
 
         const txRaw = hexStringToUint8Array(tx.tx);
 
-        let evmTx: TEVMTransactionTypes = fromSerializedTEVMData(txRaw, {common});
+        const upCommon = Common.custom({
+            chainId: common.chainId(),
+            defaultHardfork: Hardfork.London
+        });
+        let evmTx: TEVMTransactionTypes = fromSerializedTEVMData(txRaw, {common: upCommon});
 
         const isSigned = evmTx.isSigned();
 
@@ -152,7 +156,7 @@ export function createEvm(
         let gas_price: string;
         // @ts-ignore
         if (isLegacyTx(evmTx))
-            gas_price: evmTx.gasPrice?.toString()
+            gas_price = evmTx.gasPrice?.toString()
 
         // EIP: 1559 & 4844
         let max_priority_fee_per_gas: string;

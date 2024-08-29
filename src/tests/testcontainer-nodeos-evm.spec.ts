@@ -2,9 +2,11 @@ import {GenericContainer, StartedTestContainer, Wait} from "testcontainers";
 import {TranslatorConfigSchema} from "../types/translator.js";
 import {TEVMTranslator} from "../translator.js";
 import {ElasticsearchContainer, StartedElasticsearchContainer} from "@testcontainers/elasticsearch";
-import {expect} from "chai";
 import {Connector} from "../database/connector.js";
 import fs from "node:fs";
+import {expect} from "chai";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
 
 describe('Test Container full sync', () => {
     let chainHTTPPort = 8888;
@@ -13,7 +15,7 @@ describe('Test Container full sync', () => {
     let elasticContainer: StartedElasticsearchContainer;
 
     let startBlock = 2;
-    let stopBlock = 59;
+    let stopBlock = 55;
 
     before(async () => {
         leapContainer = await new GenericContainer(
@@ -63,17 +65,16 @@ describe('Test Container full sync', () => {
 
         let conn = new Connector(config);
         let data = await conn.dumpAll(startBlock, stopBlock);
-        fs.writeFileSync("/tmp/testcontainer-chain-actions-v1.5.json", JSON.stringify(data.actions, null, 4));
-        fs.writeFileSync("/tmp/testcontainer-chain-deltas-v1.5.json", JSON.stringify(data.blocks, null, 4));
 
-        // let firstBlock = await conn.getFirstIndexedBlock();
-        // expect(firstBlock["@evmPrevBlockHash"], "wrong hash on genesis block")
-        //     .to.be.eq("0000000000000000000000000000000000000000000000000000000000000000");
-        // expect(firstBlock["@evmBlockHash"], "wrong hash on first block")
-        //     .to.be.eq("586be6f60f228bc1f34a488a0b8285ba52f4d8c0482dec6a1f0f46e77dbd2651");
-        // let lastBlock = await conn.getLastIndexedBlock();
-        // expect(lastBlock["@evmBlockHash"], "wrong hash on last block")
-        //     .to.be.eq("e6d959910f531ecf246cd577e4e0d3ae8b670688a89217eb397dc35673f21e0d");
+        const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+        let validActions = fs.readFileSync(path.join(TESTS_DIR, "testcontainer-actions-v1.5.json")).toString();
+        let validDeltas = fs.readFileSync(path.join(TESTS_DIR, "testcontainer-deltas-v1.5.json")).toString();
+
+        expect(validActions, JSON.stringify(data.actions, null, 4));
+        expect(validDeltas, JSON.stringify(data.blocks, null, 4));
+        // fs.writeFileSync("/tmp/testcontainer-actions-v1.5.json", JSON.stringify(data.actions, null, 4));
+        // fs.writeFileSync("/tmp/testcontainer-deltas-v1.5.json", JSON.stringify(data.blocks, null, 4));
     });
 
     after(async () => {

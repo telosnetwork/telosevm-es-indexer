@@ -81,7 +81,7 @@ export class TEVMTranslator {
         this.config = config;
         this.common = Common.custom({
             chainId: this.config.chainId,
-            defaultHardfork: Hardfork.London
+            defaultHardfork: Hardfork.Istanbul
         }, {baseChain: Chain.Mainnet});
 
         this.rpc = getRPCClient(config.endpoint);
@@ -215,7 +215,11 @@ export class TEVMTranslator {
         if (evmTxs.length > 0) {
             for (const evmTxData of evmTxs) {
                 evmTxData.evmTx.block_hash = currentBlockHash;
-                delete evmTxData.evmTx['raw'];
+                if (this.config.elastic.storeRaw) {
+                    // @ts-ignore
+                    evmTxData.evmTx.raw = arrayToHex(evmTxData.evmTx.raw);
+                } else
+                    delete evmTxData.evmTx['raw'];
                 storableActions.push({
                     "@timestamp": block.blockTimestamp,
                     "trx_id": evmTxData.trx_id,

@@ -12,6 +12,7 @@ export const ConnectorConfigSchema = z.object({
     numberOfShards: z.number().default(1),
     numberOfReplicas: z.number().default(0),
     refreshInterval: z.number().default(-1),
+    storeRaw: z.boolean().default(false),
     codec: z.string().default('best_compression'),
     suffix: z.object({
         delta: z.string().default('delta-v1.5'),

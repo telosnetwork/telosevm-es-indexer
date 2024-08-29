@@ -80,6 +80,7 @@ export function getTemplatesForChain(
                         },
                         'logsBloom': {'type': 'text'},
                         'errors': {'enabled': false},
+                        'raw': {'enabled': false},
                         'v': {'enabled': false},
                         'r': {'enabled': false},
                         's': {'enabled': false}

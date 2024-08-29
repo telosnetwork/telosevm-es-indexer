@@ -1,10 +1,16 @@
-import {GenericContainer, StartedTestContainer, Wait} from "testcontainers";
-import {TranslatorConfig, TranslatorConfigSchema} from "../types/translator.js";
-import {TEVMTranslator} from "../translator.js";
-import {ElasticsearchContainer, StartedElasticsearchContainer} from "@testcontainers/elasticsearch";
-import {Connector} from "../database/connector.js";
-import {expect} from "chai";
-import {loadValidationData} from "./utils.js";
+import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
+import {
+    TranslatorConfig,
+    TranslatorConfigSchema,
+} from '../types/translator.js';
+import { TEVMTranslator } from '../translator.js';
+import {
+    ElasticsearchContainer,
+    StartedElasticsearchContainer,
+} from '@testcontainers/elasticsearch';
+import { Connector } from '../database/connector.js';
+import { expect } from 'chai';
+import { loadValidationData } from './utils.js';
 
 describe('Test Container full sync', () => {
     let chainHTTPPort = 8888;
@@ -17,13 +23,14 @@ describe('Test Container full sync', () => {
 
     before(async () => {
         leapContainer = await new GenericContainer(
-            "ghcr.io/telosnetwork/testcontainer-nodeos-evm:v0.1.4@sha256:a8dc857e46404d74b286f8c8d8646354ca6674daaaf9eb6f972966052c95eb4a")
+            'ghcr.io/telosnetwork/testcontainer-nodeos-evm:v0.1.4@sha256:a8dc857e46404d74b286f8c8d8646354ca6674daaaf9eb6f972966052c95eb4a'
+        )
             .withExposedPorts(chainHTTPPort, chainSHIPPort)
             .withName('testcontainers-leap')
             .withWaitStrategy(Wait.forLogMessage('Produced'))
             .start();
 
-        console.log('launched chain.')
+        console.log('launched chain.');
 
         elasticContainer = await new ElasticsearchContainer()
             .withName('testcontainers-elasticsearch')
@@ -31,13 +38,15 @@ describe('Test Container full sync', () => {
             //     'xpack.security.enabled': 'false'
             // })
             .withWaitStrategy(
-                Wait.forLogMessage('Cluster health status changed from [YELLOW] to [GREEN]'))
+                Wait.forLogMessage(
+                    'Cluster health status changed from [YELLOW] to [GREEN]'
+                )
+            )
             .start();
-        console.log('launched elasticsearch.')
+        console.log('launched elasticsearch.');
     });
 
-    it ("should sync all", async () => {
-
+    it('should sync all', async () => {
         let config: TranslatorConfig = {
             logLevel: 'debug',
             readerLogLevel: 'debug',
@@ -51,15 +60,15 @@ describe('Test Container full sync', () => {
             wsEndpoint: `ws://localhost:${leapContainer.getMappedPort(chainSHIPPort)}`,
             elastic: {
                 node: elasticContainer.getHttpUrl(),
-                storeRaw: true
-            }
+                storeRaw: true,
+            },
         };
         config = TranslatorConfigSchema.parse(config);
 
         let translator = new TEVMTranslator(config);
         await translator.launch();
 
-        await new Promise<void>(resolve => {
+        await new Promise<void>((resolve) => {
             translator.events.once('stop', resolve);
         });
 
@@ -72,7 +81,7 @@ describe('Test Container full sync', () => {
             const validAction = validationData.actions[i];
             expect(
                 action,
-                `failed action validation ${action["@raw"].block}::${action["@raw"].trx_index}`
+                `failed action validation ${action['@raw'].block}::${action['@raw'].trx_index}`
             ).to.be.deep.eq(validAction);
         }
 
@@ -80,7 +89,7 @@ describe('Test Container full sync', () => {
             const validBlock = validationData.blocks[i];
             expect(
                 block,
-                `failed block validation ${block["@global"].block_num}`
+                `failed block validation ${block['@global'].block_num}`
             ).to.be.deep.eq(validBlock);
         }
     });
@@ -89,5 +98,4 @@ describe('Test Container full sync', () => {
         leapContainer && (await leapContainer.stop());
         elasticContainer && (await elasticContainer.stop());
     });
-
 });

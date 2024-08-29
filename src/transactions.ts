@@ -1,21 +1,44 @@
-import {EosioEvmDeposit, EosioEvmRaw, EosioEvmWithdraw, StorageEvmTransaction} from "./types/evm.js";
+import {
+    EosioEvmDeposit,
+    EosioEvmRaw,
+    EosioEvmWithdraw,
+    StorageEvmTransaction,
+} from './types/evm.js';
 import {
     arrayToHex,
-    generateUniqueVRS, hexStringToUint8Array, KEYWORD_STRING_TRIM_SIZE,
-    queryAddress, RECEIPT_LOG_END, RECEIPT_LOG_START,
+    generateUniqueVRS,
+    hexStringToUint8Array,
+    KEYWORD_STRING_TRIM_SIZE,
+    queryAddress,
+    RECEIPT_LOG_END,
+    RECEIPT_LOG_START,
     stdGasLimit,
     stdGasPrice,
     TxDeserializationError,
-    ZERO_ADDR
-} from "./utils/evm.js";
-import {parseAsset} from "./utils/eosio.js";
-import {Logger} from "winston";
-import {addHexPrefix, bigIntToHex, isValidAddress, unpadHex} from "@ethereumjs/util";
-import {Bloom} from "@ethereumjs/vm";
-import {APIClient} from "@wharfkit/antelope";
-import {fromSerializedTEVMData, TEVMTransaction, TEVMTransactionTypes} from "telos-evm-custom-ds";
-import {isAccessListEIP2930Tx, isBlobEIP4844Tx, isFeeMarketEIP1559Tx, isLegacyTx} from "@ethereumjs/tx";
-import {AccessList, Common, Hardfork} from "@ethereumjs/common";
+    ZERO_ADDR,
+} from './utils/evm.js';
+import { parseAsset } from './utils/eosio.js';
+import { Logger } from 'winston';
+import {
+    addHexPrefix,
+    bigIntToHex,
+    isValidAddress,
+    unpadHex,
+} from '@ethereumjs/util';
+import { Bloom } from '@ethereumjs/vm';
+import { APIClient } from '@wharfkit/antelope';
+import {
+    fromSerializedTEVMData,
+    TEVMTransaction,
+    TEVMTransactionTypes,
+} from 'telos-evm-custom-ds';
+import {
+    isAccessListEIP2930Tx,
+    isBlobEIP4844Tx,
+    isFeeMarketEIP1559Tx,
+    isLegacyTx,
+} from '@ethereumjs/tx';
+import { AccessList, Common, Hardfork } from '@ethereumjs/common';
 
 export interface HandlerArguments {
     nativeBlockHash: string;
@@ -40,21 +63,22 @@ export function createEvm(
 
     try {
         let receiptLog = args.consoleLog.slice(
-            args.consoleLog.indexOf(RECEIPT_LOG_START) + RECEIPT_LOG_START.length,
+            args.consoleLog.indexOf(RECEIPT_LOG_START) +
+                RECEIPT_LOG_START.length,
             args.consoleLog.indexOf(RECEIPT_LOG_END)
         );
 
         let receipt: {
-            status: number,
-            epoch: number,
-            itxs: any[],
-            logs: any[],
-            errors?: any[],
-            output: string,
-            gasused: string,
-            gasusedblock: string,
-            charged_gas: string,
-            createdaddr: string
+            status: number;
+            epoch: number;
+            itxs: any[];
+            logs: any[];
+            errors?: any[];
+            output: string;
+            gasused: string;
+            gasusedblock: string;
+            charged_gas: string;
+            createdaddr: string;
         } = {
             status: 1,
             epoch: 0,
@@ -65,7 +89,7 @@ export function createEvm(
             gasused: '',
             gasusedblock: '',
             charged_gas: '',
-            createdaddr: ''
+            createdaddr: '',
         };
         try {
             receipt = JSON.parse(receiptLog);
@@ -76,25 +100,24 @@ export function createEvm(
             logger.error(error.message);
             // @ts-ignore
             logger.error(error.stack);
-            throw new TxDeserializationError(
-                'Raw EVM deserialization error',
-                {
-                    'nativeBlockHash': args.nativeBlockHash,
-                    'tx': tx,
-                    'block_num': args.blockNum,
-                    'error': error.message,
-                    'stack': error.stack
-                }
-            );
+            throw new TxDeserializationError('Raw EVM deserialization error', {
+                nativeBlockHash: args.nativeBlockHash,
+                tx: tx,
+                block_num: args.blockNum,
+                error: error.message,
+                stack: error.stack,
+            });
         }
 
         const txRaw = hexStringToUint8Array(tx.tx);
 
         const upCommon = Common.custom({
             chainId: common.chainId(),
-            defaultHardfork: Hardfork.London
+            defaultHardfork: Hardfork.London,
         });
-        let evmTx: TEVMTransactionTypes = fromSerializedTEVMData(txRaw, {common: upCommon});
+        let evmTx: TEVMTransactionTypes = fromSerializedTEVMData(txRaw, {
+            common: upCommon,
+        });
 
         const isSigned = evmTx.isSigned();
 
@@ -105,48 +128,47 @@ export function createEvm(
         let v, r, s;
 
         if (!isSigned) {
-
             let senderAddr = tx.sender.toLowerCase();
 
-            if (!senderAddr.startsWith('0x'))
-                senderAddr = `0x${senderAddr}`;
+            if (!senderAddr.startsWith('0x')) senderAddr = `0x${senderAddr}`;
 
             [v, r, s] = generateUniqueVRS(
-                args.nativeBlockHash, senderAddr, args.trx_index);
+                args.nativeBlockHash,
+                senderAddr,
+                args.trx_index
+            );
 
             evmTxParams.v = v;
             evmTxParams.r = r;
             evmTxParams.s = s;
 
             // @ts-ignore
-            evmTx = TEVMTransaction.fromTxData(evmTxParams, {common});
+            evmTx = TEVMTransaction.fromTxData(evmTxParams, { common });
 
             if (isValidAddress(senderAddr)) {
                 fromAddr = senderAddr;
-
             } else {
                 throw new TxDeserializationError(
                     'Raw EVM deserialization error',
                     {
-                        'nativeBlockHash': args.nativeBlockHash,
-                        'tx': tx,
-                        'block_num': args.blockNum,
-                        'error': `error deserializing address \'${tx.sender}\'`
+                        nativeBlockHash: args.nativeBlockHash,
+                        tx: tx,
+                        block_num: args.blockNum,
+                        error: `error deserializing address \'${tx.sender}\'`,
                     }
                 );
             }
-        } else
-            [v, r, s] = [
-                evmTx.v, evmTx.r, evmTx.s
-            ];
+        } else [v, r, s] = [evmTx.v, evmTx.r, evmTx.s];
 
         if (receipt.itxs) {
             // @ts-ignore
             receipt.itxs.forEach((itx) => {
                 if (itx.input)
-                    itx.input_trimmed = itx.input.substring(0, KEYWORD_STRING_TRIM_SIZE);
-                else
-                    itx.input_trimmed = itx.input;
+                    itx.input_trimmed = itx.input.substring(
+                        0,
+                        KEYWORD_STRING_TRIM_SIZE
+                    );
+                else itx.input_trimmed = itx.input;
             });
         }
 
@@ -155,8 +177,7 @@ export function createEvm(
         // Legacy
         let gas_price: string;
         // @ts-ignore
-        if (isLegacyTx(evmTx))
-            gas_price = evmTx.gasPrice?.toString()
+        if (isLegacyTx(evmTx)) gas_price = evmTx.gasPrice?.toString();
 
         // EIP: 1559 & 4844
         let max_priority_fee_per_gas: string;
@@ -170,7 +191,11 @@ export function createEvm(
         // EIP 1559 & 2930 & 4844
         let access_list: AccessList;
         // @ts-ignore
-        if (isFeeMarketEIP1559Tx(evmTx) || isAccessListEIP2930Tx(evmTx) || isBlobEIP4844Tx(evmTx))
+        if (
+            isFeeMarketEIP1559Tx(evmTx) ||
+            isAccessListEIP2930Tx(evmTx) ||
+            isBlobEIP4844Tx(evmTx)
+        )
             access_list = evmTx.AccessListJSON;
 
         // EIP: 4844
@@ -180,10 +205,15 @@ export function createEvm(
         // @ts-ignore
         if (isBlobEIP4844Tx(evmTx)) {
             max_fee_per_blob_gas = evmTx.maxFeePerBlobGas?.toString();
-            if (evmTx.blobVersionedHashes && evmTx.blobVersionedHashes.length > 0) {
+            if (
+                evmTx.blobVersionedHashes &&
+                evmTx.blobVersionedHashes.length > 0
+            ) {
                 blob_versioned_hashes = [];
                 for (const blob of evmTx.blobVersionedHashes) {
-                    blob_versioned_hashes.push(Buffer.from(blob).toString('base64'));
+                    blob_versioned_hashes.push(
+                        Buffer.from(blob).toString('base64')
+                    );
                 }
             }
         }
@@ -192,10 +222,11 @@ export function createEvm(
             hash: '0x' + arrayToHex(evmTx.hash()),
             trx_index: args.trx_index,
             block: args.blockNum,
-            block_hash: "",
+            block_hash: '',
             to: evmTx.to?.toString(),
             input_data: '0x' + inputData,
-            input_trimmed: '0x' + inputData.substring(0, KEYWORD_STRING_TRIM_SIZE),
+            input_trimmed:
+                '0x' + inputData.substring(0, KEYWORD_STRING_TRIM_SIZE),
             value: evmTx.value?.toString(16),
             value_d: (evmTx.value / BigInt('1000000000000000000')).toString(),
             nonce: evmTx.nonce?.toString(),
@@ -207,7 +238,9 @@ export function createEvm(
             createdaddr: receipt.createdaddr.toLowerCase(),
             gasused: BigInt(addHexPrefix(receipt.gasused)).toString(),
             gasusedblock: '',
-            charged_gas_price: BigInt(addHexPrefix(receipt.charged_gas)).toString(),
+            charged_gas_price: BigInt(
+                addHexPrefix(receipt.charged_gas)
+            ).toString(),
 
             // EIP 1559 & 4844
             max_priority_fee_per_gas,
@@ -224,14 +257,11 @@ export function createEvm(
             raw: evmTx.serialize(),
             v: v.toString(),
             r: unpadHex(bigIntToHex(r)),
-            s: unpadHex(bigIntToHex(s))
+            s: unpadHex(bigIntToHex(s)),
         };
 
-        if (!isSigned)
-            txBody['from'] = fromAddr;
-
-        else
-            txBody['from'] = evmTx.getSenderAddress().toString().toLowerCase();
+        if (!isSigned) txBody['from'] = fromAddr;
+        else txBody['from'] = evmTx.getSenderAddress().toString().toLowerCase();
 
         if (receipt.logs) {
             txBody.logs = receipt.logs;
@@ -242,9 +272,13 @@ export function createEvm(
                 //console.log(txBody['logs']);
                 const bloom = new Bloom();
                 for (const log of txBody['logs']) {
-                    bloom.add(hexStringToUint8Array(log['address'].padStart(40, '0')));
+                    bloom.add(
+                        hexStringToUint8Array(log['address'].padStart(40, '0'))
+                    );
                     for (const topic of log.topics)
-                        bloom.add(hexStringToUint8Array(topic.padStart(64, '0')));
+                        bloom.add(
+                            hexStringToUint8Array(topic.padStart(64, '0'))
+                        );
                 }
 
                 txBody['logsBloom'] = arrayToHex(bloom.bitvector);
@@ -263,16 +297,13 @@ export function createEvm(
 
         return txBody;
     } catch (error) {
-        throw new TxDeserializationError(
-            'Raw EVM deserialization error',
-            {
-                'nativeBlockHash': args.nativeBlockHash,
-                'tx': tx,
-                'block_num': args.blockNum,
-                'error': error.message,
-                'stack': error.stack
-            }
-        );
+        throw new TxDeserializationError('Raw EVM deserialization error', {
+            nativeBlockHash: args.nativeBlockHash,
+            tx: tx,
+            block_num: args.blockNum,
+            error: error.message,
+            stack: error.stack,
+        });
     }
 }
 
@@ -293,28 +324,28 @@ export async function createDeposit(
             toAddr = `0x${address}`;
         } else {
             throw new TxDeserializationError(
-                "User deposited without registering",
+                'User deposited without registering',
                 {
-                    'nativeBlockHash': args.nativeBlockHash,
-                    'tx': tx,
-                    'block_num': args.blockNum
-                });
+                    nativeBlockHash: args.nativeBlockHash,
+                    tx: tx,
+                    block_num: args.blockNum,
+                }
+            );
         }
     } else {
-        if (isValidAddress(tx.memo))
-            toAddr = tx.memo;
-
+        if (isValidAddress(tx.memo)) toAddr = tx.memo;
         else {
             const address = await queryAddress(tx.from, rpc, logger);
 
             if (!address) {
                 throw new TxDeserializationError(
-                    "User deposited to an invalid address",
+                    'User deposited to an invalid address',
                     {
-                        'nativeBlockHash': args.nativeBlockHash,
-                        'tx': tx,
-                        'block_num': args.blockNum
-                    });
+                        nativeBlockHash: args.nativeBlockHash,
+                        tx: tx,
+                        block_num: args.blockNum,
+                    }
+                );
             }
 
             toAddr = `0x${address}`;
@@ -322,7 +353,10 @@ export async function createDeposit(
     }
 
     const [v, r, s] = generateUniqueVRS(
-        args.nativeBlockHash, ZERO_ADDR, args.trx_index);
+        args.nativeBlockHash,
+        ZERO_ADDR,
+        args.trx_index
+    );
 
     const txParams = {
         nonce: 0,
@@ -330,21 +364,21 @@ export async function createDeposit(
         gasLimit: stdGasLimit,
         to: toAddr,
         value: BigInt(quantity.amount) * BigInt('100000000000000'),
-        data: "0x",
+        data: '0x',
         v: v,
         r: r,
-        s: s
+        s: s,
     };
 
     // @ts-ignore
-    const evmTx = TEVMTransaction.fromTxData(txParams, {common});
+    const evmTx = TEVMTransaction.fromTxData(txParams, { common });
     const inputData = '0x' + arrayToHex(evmTx.data);
     return {
         hash: '0x' + arrayToHex(evmTx.hash()),
         from: ZERO_ADDR,
         trx_index: args.trx_index,
         block: args.blockNum,
-        block_hash: "",
+        block_hash: '',
         to: evmTx.to?.toString(),
         input_data: inputData,
         input_trimmed: inputData.substring(0, KEYWORD_STRING_TRIM_SIZE),
@@ -356,15 +390,15 @@ export async function createDeposit(
         status: 1,
         itxs: [],
         epoch: 0,
-        createdaddr: "",
+        createdaddr: '',
         gasused: stdGasLimit.toString(),
         gasusedblock: '',
         charged_gas_price: '0',
-        output: "",
+        output: '',
         raw: evmTx.serialize(),
         v: v.toString(),
         r: unpadHex(bigIntToHex(r)),
-        s: unpadHex(bigIntToHex(s))
+        s: unpadHex(bigIntToHex(s)),
     };
 }
 
@@ -380,7 +414,10 @@ export async function createWithdraw(
     const quantity = parseAsset(tx.quantity);
 
     const [v, r, s] = generateUniqueVRS(
-        args.nativeBlockHash, address, args.trx_index);
+        args.nativeBlockHash,
+        address,
+        args.trx_index
+    );
 
     const txParams = {
         nonce: 0,
@@ -388,21 +425,21 @@ export async function createWithdraw(
         gasLimit: stdGasLimit,
         to: ZERO_ADDR,
         value: BigInt(quantity.amount) * BigInt('100000000000000'),
-        data: "0x",
+        data: '0x',
         v: v,
         r: r,
-        s: s
+        s: s,
     };
 
     // @ts-ignore
-    const evmTx = new TEVMTransaction(txParams, {common});
+    const evmTx = new TEVMTransaction(txParams, { common });
     const inputData = '0x' + arrayToHex(evmTx.data);
     return {
         hash: '0x' + arrayToHex(evmTx.hash()),
         from: '0x' + address.toLowerCase(),
         trx_index: args.trx_index,
         block: args.blockNum,
-        block_hash: "",
+        block_hash: '',
         to: evmTx.to?.toString(),
         input_data: inputData,
         input_trimmed: inputData.substring(0, KEYWORD_STRING_TRIM_SIZE),
@@ -414,14 +451,14 @@ export async function createWithdraw(
         status: 1,
         itxs: [],
         epoch: 0,
-        createdaddr: "",
+        createdaddr: '',
         gasused: stdGasLimit.toString(),
         gasusedblock: '',
         charged_gas_price: '0',
-        output: "",
+        output: '',
         raw: evmTx.serialize(),
         v: v.toString(),
         r: unpadHex(bigIntToHex(r)),
-        s: unpadHex(bigIntToHex(s))
+        s: unpadHex(bigIntToHex(s)),
     };
 }

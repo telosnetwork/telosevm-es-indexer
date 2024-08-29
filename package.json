@@ -11,6 +11,7 @@
     "start": "yarn run build && node build/main.js",
     "test": "mocha --timeout 120000",
     "test-ship": "mocha --timeout 120000 --config=.mocharc-ship.json",
+    "format": "prettier --write 'src/**/*.ts'",
     "clean-deps": "rm -rdf node_modules && yarn cache clean",
     "clean-build": "rm -rdf build/**/*.js build/*.js build/**/*.map"
   },
@@ -45,6 +46,7 @@
     "@types/node": "^20.10.4",
     "chai": "^5.1.1",
     "mocha": "^10.7.3",
+    "prettier": "^3.3.3",
     "testcontainers": "^10.11.0",
     "ts-node": "^10.9.2",
     "typescript": "4.9.5"

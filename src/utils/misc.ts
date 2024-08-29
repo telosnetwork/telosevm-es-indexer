@@ -9,7 +9,7 @@ export function portFromEndpoint(endpoint: string): number {
  * @returns {boolean}
  */
 function isObject(item) {
-    return (item && typeof item === 'object' && !Array.isArray(item));
+    return item && typeof item === 'object' && !Array.isArray(item);
 }
 
 /**

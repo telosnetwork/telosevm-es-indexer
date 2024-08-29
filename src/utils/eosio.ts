@@ -2,11 +2,11 @@ function charToSymbol(c: any) {
     if (typeof c == 'string') c = c.charCodeAt(0);
 
     if (c >= 'a'.charCodeAt(0) && c <= 'z'.charCodeAt(0)) {
-      return c - 'a'.charCodeAt(0) + 6;
+        return c - 'a'.charCodeAt(0) + 6;
     }
 
     if (c >= '1'.charCodeAt(0) && c <= '5'.charCodeAt(0)) {
-      return c - '1'.charCodeAt(0) + 1;
+        return c - '1'.charCodeAt(0) + 1;
     }
 
     return 0;
@@ -17,16 +17,17 @@ export function nameToUint64(name: any) {
 
     let i = 0;
     for (; i < 12 && name[i]; i++) {
-      n |= BigInt(charToSymbol(name.charCodeAt(i)) & 0x1f) << BigInt(64 - 5 * (i + 1));
+        n |=
+            BigInt(charToSymbol(name.charCodeAt(i)) & 0x1f) <<
+            BigInt(64 - 5 * (i + 1));
     }
 
     if (i == 12) {
-      n |= BigInt(charToSymbol(name.charCodeAt(i)) & 0x0f);
+        n |= BigInt(charToSymbol(name.charCodeAt(i)) & 0x0f);
     }
 
     return n.toString();
 }
-
 
 export function parseAsset(s: string) {
     if (typeof s !== 'string') {
@@ -41,7 +42,11 @@ export function parseAsset(s: string) {
         ++pos;
     }
     let foundDigit = false;
-    while (pos < s.length && s.charCodeAt(pos) >= '0'.charCodeAt(0) && s.charCodeAt(pos) <= '9'.charCodeAt(0)) {
+    while (
+        pos < s.length &&
+        s.charCodeAt(pos) >= '0'.charCodeAt(0) &&
+        s.charCodeAt(pos) <= '9'.charCodeAt(0)
+    ) {
         foundDigit = true;
         amount += s[pos];
         ++pos;
@@ -51,7 +56,11 @@ export function parseAsset(s: string) {
     }
     if (s[pos] === '.') {
         ++pos;
-        while (pos < s.length && s.charCodeAt(pos) >= '0'.charCodeAt(0) && s.charCodeAt(pos) <= '9'.charCodeAt(0)) {
+        while (
+            pos < s.length &&
+            s.charCodeAt(pos) >= '0'.charCodeAt(0) &&
+            s.charCodeAt(pos) <= '9'.charCodeAt(0)
+        ) {
             amount += s[pos];
             ++precision;
             ++pos;
@@ -62,17 +71,15 @@ export function parseAsset(s: string) {
     return {
         amount: amount,
         precision: precision,
-        symbol: name
+        symbol: name,
     };
 }
 
-
 import fetch from 'node-fetch';
-import {APIClient, FetchProvider} from "@wharfkit/antelope";
-
+import { APIClient, FetchProvider } from '@wharfkit/antelope';
 
 export function getRPCClient(endpoint: string) {
     return new APIClient({
-        provider: new FetchProvider(endpoint, {fetch})
+        provider: new FetchProvider(endpoint, { fetch }),
     });
 }

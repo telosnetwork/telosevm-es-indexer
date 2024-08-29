@@ -26,8 +26,7 @@ export function isValidHexString(h: string): boolean {
 
 export function isValidUnprefixedEVMAddress(hash: string): boolean {
     // Check if the string is exactly 64
-    if (hash.length !== 40)
-        return false;
+    if (hash.length !== 40) return false;
 
     // Check if the hash is a valid hexadecimal number
     return isValidUnprefixedHexString(hash);
@@ -35,8 +34,7 @@ export function isValidUnprefixedEVMAddress(hash: string): boolean {
 
 export function isValidAntelopeHash(hash: string): boolean {
     // Check if the string is exactly 64
-    if (hash.length !== 64)
-        return false;
+    if (hash.length !== 64) return false;
 
     // Check if the hash is a valid hexadecimal number
     return isValidUnprefixedHexString(hash);

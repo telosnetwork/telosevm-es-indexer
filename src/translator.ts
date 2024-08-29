@@ -1,66 +1,79 @@
-import {readFileSync} from "node:fs";
+import { readFileSync } from 'node:fs';
 
-import {IndexedBlockInfo, TranslatorConfig, IndexerState, StartBlockInfo} from './types/translator.js';
+import {
+    IndexedBlockInfo,
+    TranslatorConfig,
+    IndexerState,
+    StartBlockInfo,
+} from './types/translator.js';
 
-import {createLogger, format, Logger, transports} from 'winston';
+import { createLogger, format, Logger, transports } from 'winston';
 
-import {StorageEosioAction, StorageEosioDelta} from './types/evm.js';
+import { StorageEosioAction, StorageEosioDelta } from './types/evm.js';
 
-import {Connector} from './database/connector.js';
+import { Connector } from './database/connector.js';
 
 import {
     arrayToHex,
     generateBlockApplyInfo,
     hexStringToUint8Array,
     ZERO_HASH,
-    ProcessedBlock, removeHexPrefix, BLOCK_GAS_LIMIT, EMPTY_TRIE, EMPTY_TRIE_BUF
-} from './utils/evm.js'
+    ProcessedBlock,
+    removeHexPrefix,
+    BLOCK_GAS_LIMIT,
+    EMPTY_TRIE,
+    EMPTY_TRIE_BUF,
+} from './utils/evm.js';
 
 import moment from 'moment';
-import {getRPCClient} from './utils/eosio.js';
-import {ABI, APIClient} from "@wharfkit/antelope";
+import { getRPCClient } from './utils/eosio.js';
+import { ABI, APIClient } from '@wharfkit/antelope';
 
-import EventEmitter from "events";
+import EventEmitter from 'events';
 
-import {packageInfo, sleep} from "./utils/indexer.js";
+import { packageInfo, sleep } from './utils/indexer.js';
 
-import {createDeposit, createEvm, createWithdraw, HandlerArguments} from "./transactions.js";
+import {
+    createDeposit,
+    createEvm,
+    createWithdraw,
+    HandlerArguments,
+} from './transactions.js';
 
-import {clearInterval} from "timers";
+import { clearInterval } from 'timers';
 import {
     Block,
     StateHistoryReader,
     StateHistoryReaderOptionsSchema,
-    ThroughputMeasurer
-} from "@guilledk/state-history-reader";
-import {TEVMBlockHeader} from "telos-evm-custom-ds";
-import {Chain, Common, Hardfork} from "@ethereumjs/common";
-
+    ThroughputMeasurer,
+} from '@guilledk/state-history-reader';
+import { TEVMBlockHeader } from 'telos-evm-custom-ds';
+import { Chain, Common, Hardfork } from '@ethereumjs/common';
 
 export class TEVMTranslator {
     startBlock: number;
     stopBlock: number;
 
-    state: IndexerState = IndexerState.SYNC;  // global indexer state, either HEAD or SYNC, changes buffered-writes-to-db machinery to be write-asap
+    state: IndexerState = IndexerState.SYNC; // global indexer state, either HEAD or SYNC, changes buffered-writes-to-db machinery to be write-asap
 
-    readonly config: TranslatorConfig;  // global indexer config as defined by envoinrment or config file
+    readonly config: TranslatorConfig; // global indexer config as defined by envoinrment or config file
 
-    private reader: StateHistoryReader;  // websocket state history connector, deserializes nodeos protocol
-    private readonly readerAbis: {account: string, abi: ABI}[];
+    private reader: StateHistoryReader; // websocket state history connector, deserializes nodeos protocol
+    private readonly readerAbis: { account: string; abi: ABI }[];
 
     private readonly rpc: APIClient;
     private remoteRpc: APIClient;
-    connector: Connector;  // custom elastic search db driver
+    connector: Connector; // custom elastic search db driver
 
-    private prevHash: string;  // previous indexed block evm hash, needed by machinery (do not modify manualy)
+    private prevHash: string; // previous indexed block evm hash, needed by machinery (do not modify manualy)
     headBlock: number;
-    lastBlock: number;  // last block number that was successfully pushed to db in order
+    lastBlock: number; // last block number that was successfully pushed to db in order
 
     // debug status used to print statistics
     private pushedLastUpdate: number = 0;
     private stallCounter: number = 0;
     private perfMetrics: ThroughputMeasurer = new ThroughputMeasurer({
-        windowSizeMs: 10 * 1000
+        windowSizeMs: 10 * 1000,
     });
 
     private perfTaskId: NodeJS.Timer;
@@ -79,17 +92,30 @@ export class TEVMTranslator {
         this.startBlock = config.startBlock;
         this.stopBlock = config.stopBlock;
         this.config = config;
-        this.common = Common.custom({
-            chainId: this.config.chainId,
-            defaultHardfork: Hardfork.Istanbul
-        }, {baseChain: Chain.Mainnet});
+        this.common = Common.custom(
+            {
+                chainId: this.config.chainId,
+                defaultHardfork: Hardfork.Istanbul,
+            },
+            { baseChain: Chain.Mainnet }
+        );
 
         this.rpc = getRPCClient(config.endpoint);
         this.remoteRpc = getRPCClient(config.remoteEndpoint);
 
-        this.readerAbis = ['eosio', 'eosio.token', 'eosio.msig', 'eosio.evm'].map(abiName => {
-            const jsonAbi = JSON.parse(readFileSync(`src/abis/${abiName}.json`).toString());
-            return {account: jsonAbi.account_name, abi: ABI.from(jsonAbi.abi)};
+        this.readerAbis = [
+            'eosio',
+            'eosio.token',
+            'eosio.msig',
+            'eosio.evm',
+        ].map((abiName) => {
+            const jsonAbi = JSON.parse(
+                readFileSync(`src/abis/${abiName}.json`).toString()
+            );
+            return {
+                account: jsonAbi.account_name,
+                abi: ABI.from(jsonAbi.abi),
+            };
         });
 
         process.on('SIGINT', async () => await this.stop());
@@ -97,7 +123,7 @@ export class TEVMTranslator {
         process.on('SIGQUIT', async () => await this.stop());
         process.on('SIGTERM', async () => await this.stop());
 
-        process.on('unhandledRejection', error => {
+        process.on('unhandledRejection', (error) => {
             // @ts-ignore
             this.logger.error(error.message);
             // @ts-ignore
@@ -115,13 +141,17 @@ export class TEVMTranslator {
                 format.printf((info: any) => {
                     return `${info.timestamp} [PID:${process.pid}] [${info.level}] : ${info.message} ${Object.keys(info.metadata).length > 0 ? JSON.stringify(info.metadata) : ''}`;
                 })
-            )
-        }
+            ),
+        };
         this.logger = createLogger(loggingOptions);
-        this.logger.add(new transports.Console({
-            level: this.config.logLevel
-        }));
-        this.logger.debug('Logger initialized with level ' + this.config.logLevel);
+        this.logger.add(
+            new transports.Console({
+                level: this.config.logLevel,
+            })
+        );
+        this.logger.debug(
+            'Logger initialized with level ' + this.config.logLevel
+        );
         this.connector = new Connector(this.config, this.logger);
     }
 
@@ -129,10 +159,8 @@ export class TEVMTranslator {
      * Debug routine that prints indexing stats, periodically called every second
      */
     async performanceMetricsTask() {
-
         if (this.perfMetrics.max > 0) {
-            if (this.perfMetrics.average == 0)
-                this.stallCounter++;
+            if (this.perfMetrics.average == 0) this.stallCounter++;
 
             if (this.stallCounter > this.config.perf.stallCounter) {
                 this.logger.info('stall detected... restarting ship reader.');
@@ -150,7 +178,7 @@ export class TEVMTranslator {
     }
 
     async resetReader() {
-        this.logger.warn("restarting SHIP reader!...");
+        this.logger.warn('restarting SHIP reader!...');
         this._isRestarting = true;
         this.stallCounter = -2;
         await this.reader.restart(1000, this.lastBlock + 1);
@@ -169,19 +197,21 @@ export class TEVMTranslator {
         const blockTimestamp = moment.utc(block.blockTimestamp);
 
         // generate 'valid' block header
-        const blockHeader = TEVMBlockHeader.fromHeaderData({
-            'parentHash': hexStringToUint8Array(this.prevHash),
-            'stateRoot': EMPTY_TRIE_BUF,
-            'transactionsTrie': blockApplyInfo.txsRootHash.root(),
-            'receiptTrie': blockApplyInfo.receiptsTrie.root(),
-            'logsBloom': blockApplyInfo.blockBloom.bitvector,
-            'number': BigInt(block.evmBlockNumber),
-            'gasLimit': BLOCK_GAS_LIMIT,
-            'gasUsed': blockApplyInfo.gasUsed,
-            'timestamp': BigInt(blockTimestamp.unix()),
-            'extraData': hexStringToUint8Array(block.nativeBlockHash)
-
-        }, {common: this.common});
+        const blockHeader = TEVMBlockHeader.fromHeaderData(
+            {
+                parentHash: hexStringToUint8Array(this.prevHash),
+                stateRoot: EMPTY_TRIE_BUF,
+                transactionsTrie: blockApplyInfo.txsRootHash.root(),
+                receiptTrie: blockApplyInfo.receiptsTrie.root(),
+                logsBloom: blockApplyInfo.blockBloom.bitvector,
+                number: BigInt(block.evmBlockNumber),
+                gasLimit: BLOCK_GAS_LIMIT,
+                gasUsed: blockApplyInfo.gasUsed,
+                timestamp: BigInt(blockTimestamp.unix()),
+                extraData: hexStringToUint8Array(block.nativeBlockHash),
+            },
+            { common: this.common }
+        );
 
         const currentBlockHash = arrayToHex(blockHeader.hash());
         const receiptsHash = arrayToHex(blockApplyInfo.receiptsTrie.root());
@@ -190,26 +220,26 @@ export class TEVMTranslator {
         // generate storeable block info
         const storableActions: StorageEosioAction[] = [];
         const storableBlockInfo: IndexedBlockInfo = {
-            "transactions": storableActions,
-            "delta": {
-                "@timestamp": blockTimestamp.format(),
-                "block_num": block.nativeBlockNumber,
-                "@global": {
-                    "block_num": block.evmBlockNumber
+            transactions: storableActions,
+            delta: {
+                '@timestamp': blockTimestamp.format(),
+                block_num: block.nativeBlockNumber,
+                '@global': {
+                    block_num: block.evmBlockNumber,
                 },
-                "@evmPrevBlockHash": this.prevHash,
-                "@evmBlockHash": currentBlockHash,
-                "@blockHash": block.nativeBlockHash,
-                "@receiptsRootHash": receiptsHash,
-                "@transactionsRoot": txsHash,
-                "gasUsed": blockApplyInfo.gasUsed.toString(),
-                "gasLimit": BLOCK_GAS_LIMIT.toString(),
-                "size": blockApplyInfo.size.toString()
+                '@evmPrevBlockHash': this.prevHash,
+                '@evmBlockHash': currentBlockHash,
+                '@blockHash': block.nativeBlockHash,
+                '@receiptsRootHash': receiptsHash,
+                '@transactionsRoot': txsHash,
+                gasUsed: blockApplyInfo.gasUsed.toString(),
+                gasLimit: BLOCK_GAS_LIMIT.toString(),
+                size: blockApplyInfo.size.toString(),
             },
-            "nativeHash": block.nativeBlockHash.toLowerCase(),
-            "parentHash": this.prevHash,
-            "receiptsRoot": receiptsHash,
-            "blockBloom": arrayToHex(blockApplyInfo.blockBloom.bitvector)
+            nativeHash: block.nativeBlockHash.toLowerCase(),
+            parentHash: this.prevHash,
+            receiptsRoot: receiptsHash,
+            blockBloom: arrayToHex(blockApplyInfo.blockBloom.bitvector),
         };
 
         if (evmTxs.length > 0) {
@@ -218,15 +248,13 @@ export class TEVMTranslator {
                 if (this.config.elastic.storeRaw) {
                     // @ts-ignore
                     evmTxData.evmTx.raw = arrayToHex(evmTxData.evmTx.raw);
-                } else
-                    delete evmTxData.evmTx['raw'];
+                } else delete evmTxData.evmTx['raw'];
                 storableActions.push({
-                    "@timestamp": block.blockTimestamp,
-                    "trx_id": evmTxData.trx_id,
-                    "action_ordinal": evmTxData.action_ordinal,
-                    "@raw": evmTxData.evmTx
+                    '@timestamp': block.blockTimestamp,
+                    trx_id: evmTxData.trx_id,
+                    action_ordinal: evmTxData.action_ordinal,
+                    '@raw': evmTxData.evmTx,
                 });
-
             }
         }
 
@@ -238,7 +266,9 @@ export class TEVMTranslator {
     private async handleStateSwitch() {
         // SYNC & HEAD mode switch detection
         try {
-            this.headBlock = ((await this.remoteRpc.v1.chain.get_info()).head_block_num).toNumber();
+            this.headBlock = (
+                await this.remoteRpc.v1.chain.get_info()
+            ).head_block_num.toNumber();
             const isHeadTarget = this.headBlock >= this.stopBlock;
             const targetBlock = isHeadTarget ? this.headBlock : this.stopBlock;
 
@@ -251,26 +281,24 @@ export class TEVMTranslator {
             this.logger.info(statsString);
 
             if (isHeadTarget && blocksUntilHead <= 100) {
-                if (this.state == IndexerState.HEAD)
-                    return;
+                if (this.state == IndexerState.HEAD) return;
 
                 this.state = IndexerState.HEAD;
                 this.connector.state = IndexerState.HEAD;
 
                 this.logger.info(
-                    'switched to HEAD mode! blocks will be written to db asap.');
-
+                    'switched to HEAD mode! blocks will be written to db asap.'
+                );
             } else {
-                if (this.state == IndexerState.SYNC)
-                    return;
+                if (this.state == IndexerState.SYNC) return;
 
                 this.state = IndexerState.SYNC;
                 this.connector.state = IndexerState.SYNC;
 
                 this.logger.info(
-                    'switched to SYNC mode! blocks will be written to db in batches.');
+                    'switched to SYNC mode! blocks will be written to db in batches.'
+                );
             }
-
         } catch (error) {
             this.logger.warn('get_info query to remote failed with error:');
             this.logger.warn(error);
@@ -294,11 +322,12 @@ export class TEVMTranslator {
             return;
         }
 
-        if (this.stopBlock > 0 && currentBlock > this.stopBlock)
-            return;
+        if (this.stopBlock > 0 && currentBlock > this.stopBlock) return;
 
         if (currentBlock > this.lastBlock + 1) {
-            this.logger.warn(`Expected block ${this.lastBlock + 1} and got ${currentBlock}, gap on reader?`);
+            this.logger.warn(
+                `Expected block ${this.lastBlock + 1} and got ${currentBlock}, gap on reader?`
+            );
             await this.resetReader();
             return;
         }
@@ -307,18 +336,21 @@ export class TEVMTranslator {
 
         // native-evm block num delta is constant based on config
         const currentEvmBlock = currentBlock - this.config.evmBlockDelta;
-        const errors = []
+        const errors = [];
 
         // traces
         const systemAccounts = ['eosio', 'eosio.stake', 'eosio.ram'];
         const contractWhitelist = [
-            "eosio.evm", "eosio.token",  // evm
-            "eosio.msig"  // deferred transaction sig catch
+            'eosio.evm',
+            'eosio.token', // evm
+            'eosio.msig', // deferred transaction sig catch
         ];
         const actionWhitelist = [
-            "raw", "withdraw", "transfer",  // evm
-            "exec" // msig deferred sig catch
-        ]
+            'raw',
+            'withdraw',
+            'transfer', // evm
+            'exec', // msig deferred sig catch
+        ];
         const actions = [];
         const evmTxs = [];
         const evmTransactions = [];
@@ -330,8 +362,10 @@ export class TEVMTranslator {
             // if (aDuplicate)
             //     continue;
 
-            if (!contractWhitelist.includes(action.act.account) ||
-                !actionWhitelist.includes(action.act.name))
+            if (
+                !contractWhitelist.includes(action.act.account) ||
+                !actionWhitelist.includes(action.act.name)
+            )
                 continue;
 
             const isEvmContract = action.act.account === 'eosio.evm';
@@ -339,13 +373,16 @@ export class TEVMTranslator {
             const isWithdraw = isEvmContract && action.act.name === 'withdraw';
 
             const isTokenContract = action.act.account === 'eosio.token';
-            const isTransfer = isTokenContract && action.act.name === 'transfer';
+            const isTransfer =
+                isTokenContract && action.act.name === 'transfer';
             const isDeposit = isTransfer && action.act.data.to === 'eosio.evm';
 
             // discard transfers to accounts other than eosio.evm
             // and transfers from system accounts
-            if ((isTransfer && action.receiver != 'eosio.evm') ||
-                (isTransfer && action.act.data.from in systemAccounts))
+            if (
+                (isTransfer && action.receiver != 'eosio.evm') ||
+                (isTransfer && action.act.data.from in systemAccounts)
+            )
                 continue;
 
             const params: HandlerArguments = {
@@ -353,20 +390,29 @@ export class TEVMTranslator {
                 trx_index: evmTxs.length,
                 blockNum: currentEvmBlock,
                 tx: action.act.data,
-                consoleLog: action.console
+                consoleLog: action.console,
             };
 
-            if (isRaw)
-                evmTxs.push(createEvm(params, this.common, this.logger));
-
+            if (isRaw) evmTxs.push(createEvm(params, this.common, this.logger));
             else if (isWithdraw)
-                evmTxs.push(await createWithdraw(params, this.common, this.rpc, this.logger));
-
+                evmTxs.push(
+                    await createWithdraw(
+                        params,
+                        this.common,
+                        this.rpc,
+                        this.logger
+                    )
+                );
             else if (isDeposit)
-                evmTxs.push(await createDeposit(params, this.common, this.rpc, this.logger));
-
-            else
-                continue;
+                evmTxs.push(
+                    await createDeposit(
+                        params,
+                        this.common,
+                        this.rpc,
+                        this.logger
+                    )
+                );
+            else continue;
 
             actions.push(action);
         }
@@ -381,7 +427,7 @@ export class TEVMTranslator {
             evmTransactions.push({
                 action_ordinal: action.actionOrdinal,
                 trx_id: action.trxId,
-                evmTx: evmTx
+                evmTx: evmTx,
             });
             i++;
         }
@@ -392,7 +438,7 @@ export class TEVMTranslator {
             evmBlockNumber: currentEvmBlock,
             blockTimestamp: block.header.timestamp,
             evmTxs: evmTransactions,
-            errors: errors
+            errors: errors,
         });
 
         if (this._isRestarting) {
@@ -408,8 +454,11 @@ export class TEVMTranslator {
 
         // remember block sequence & trim if older than lib
         this.sequenceHistory.push(storableBlockInfo.delta);
-        while (this.sequenceHistory.length > 0 &&
-               this.sequenceHistory[0].block_num < block.status.last_irreversible.block_num)
+        while (
+            this.sequenceHistory.length > 0 &&
+            this.sequenceHistory[0].block_num <
+                block.status.last_irreversible.block_num
+        )
             this.sequenceHistory.shift();
 
         if (this._isRestarting) {
@@ -440,52 +489,56 @@ export class TEVMTranslator {
         let block: StorageEosioDelta = null;
         let sequenceIndex = this.sequenceHistory.length - 1;
         while (sequenceIndex >= 0) {
-            if(this.sequenceHistory[sequenceIndex].block_num == blockNum) {
+            if (this.sequenceHistory[sequenceIndex].block_num == blockNum) {
                 block = this.sequenceHistory[sequenceIndex];
                 break;
             }
             sequenceIndex--;
         }
 
-        if(!block)
-            throw new Error(`Block #${blockNum} not found in short term memory`);
+        if (!block)
+            throw new Error(
+                `Block #${blockNum} not found in short term memory`
+            );
         return {
             prevHash: block['@evmBlockHash'],
-            index: sequenceIndex
+            index: sequenceIndex,
         };
     }
 
     async startReaderFrom(blockNum: number) {
-        this.reader = new StateHistoryReader(StateHistoryReaderOptionsSchema.parse({
-            shipAPI: this.config.wsEndpoint,
-            chainAPI: this.config.endpoint,
-            startBlock: blockNum,
-            stopBlock: this.config.stopBlock,
-            actionWhitelist: {
-                'eosio.token': ['transfer'],
-                'eosio.msig': ['exec'],
-                'eosio.evm': ['raw', 'withdraw']
-            },
-            tableWhitelist: {},
-            irreversibleOnly: this.config.irreversibleOnly,
-            logLevel: (this.config.readerLogLevel).toLowerCase(),
-            maxMsgsInFlight: this.config.perf.maxMessagesInFlight,
-            maxPayloadMb: Math.floor(1024 * 1.5)
-        }));
+        this.reader = new StateHistoryReader(
+            StateHistoryReaderOptionsSchema.parse({
+                shipAPI: this.config.wsEndpoint,
+                chainAPI: this.config.endpoint,
+                startBlock: blockNum,
+                stopBlock: this.config.stopBlock,
+                actionWhitelist: {
+                    'eosio.token': ['transfer'],
+                    'eosio.msig': ['exec'],
+                    'eosio.evm': ['raw', 'withdraw'],
+                },
+                tableWhitelist: {},
+                irreversibleOnly: this.config.irreversibleOnly,
+                logLevel: this.config.readerLogLevel.toLowerCase(),
+                maxMsgsInFlight: this.config.perf.maxMessagesInFlight,
+                maxPayloadMb: Math.floor(1024 * 1.5),
+            })
+        );
 
         this.reader.addContracts(this.readerAbis);
 
         this.reader.onConnected = () => {
             this.logger.info('SHIP Reader connected.');
-        }
+        };
         this.reader.onDisconnect = () => {
             this.logger.warn('SHIP Reader disconnected.');
-        }
+        };
         this.reader.onError = (err) => {
             this.logger.error(`SHIP Reader error: ${err}`);
             this.logger.error(err.stack);
             throw err;
-        }
+        };
         this.reader.onBlock = this.processBlock.bind(this);
 
         await this.reader.start();
@@ -535,25 +588,26 @@ export class TEVMTranslator {
             return;
         }
 
-        if (lastBlock != null &&
-            lastBlock['@evmPrevBlockHash'] != ZERO_HASH) {
+        if (lastBlock != null && lastBlock['@evmPrevBlockHash'] != ZERO_HASH) {
             // if there is a last block found on db other than genesis doc
 
             if (gap == null) {
-                ({startBlock, prevHash} = await this.getBlockInfoFromLastBlock(lastBlock));
+                ({ startBlock, prevHash } =
+                    await this.getBlockInfoFromLastBlock(lastBlock));
             } else {
                 if (this.config.runtime.gapsPurge)
-                    ({startBlock, prevHash} = await this.getBlockInfoFromGap(gap));
+                    ({ startBlock, prevHash } =
+                        await this.getBlockInfoFromGap(gap));
                 else
                     throw new Error(
-                        `Gap found in database at ${gap}, but --gaps-purge flag not passed!`);
+                        `Gap found in database at ${gap}, but --gaps-purge flag not passed!`
+                    );
             }
 
             this.prevHash = prevHash;
             this.startBlock = startBlock;
             this.lastBlock = startBlock - 1;
             this.connector.lastPushed = this.lastBlock;
-
         } else if (this.config.evmPrevHash != '') {
             // if there is an evmPrevHash set state directly
             prevHash = this.config.evmPrevHash;
@@ -564,7 +618,9 @@ export class TEVMTranslator {
         }
 
         if (prevHash)
-            this.logger.info(`start from ${startBlock} with hash 0x${prevHash}.`);
+            this.logger.info(
+                `start from ${startBlock} with hash 0x${prevHash}.`
+            );
         else {
             this.logger.info(`starting from genesis block ${startBlock}`);
             await this.genesisBlockInitialization();
@@ -580,43 +636,61 @@ export class TEVMTranslator {
             try {
                 await this.remoteRpc.v1.chain.get_info();
             } catch (error) {
-                this.logger.error(`Error while doing remote node check: ${error.message}`);
+                this.logger.error(
+                    `Error while doing remote node check: ${error.message}`
+                );
                 throw error;
             }
         }
 
-        this.logger.info('Initializing ws broadcast...')
+        this.logger.info('Initializing ws broadcast...');
         this.connector.startBroadcast();
 
         await this.startReaderFrom(startBlock);
 
         // Launch bg routines
-        this.perfTaskId = setInterval(async () => await this.performanceMetricsTask(), 1000);
-        this.stateSwitchTaskId = setInterval(() => this.handleStateSwitch(), 10 * 1000);
+        this.perfTaskId = setInterval(
+            async () => await this.performanceMetricsTask(),
+            1000
+        );
+        this.stateSwitchTaskId = setInterval(
+            () => this.handleStateSwitch(),
+            10 * 1000
+        );
     }
 
     async genesisBlockInitialization() {
         const genesisBlock = await this.getGenesisBlock();
 
         // number of seconds since epoch
-        const genesisTimestamp = moment.utc(genesisBlock.timestamp.toString()).unix();
+        const genesisTimestamp = moment
+            .utc(genesisBlock.timestamp.toString())
+            .unix();
 
         // genesis evm block num
-        const genesisEvmBlockNum = genesisBlock.block_num - this.config.evmBlockDelta;
+        const genesisEvmBlockNum =
+            genesisBlock.block_num - this.config.evmBlockDelta;
 
-        const genesisHeader = TEVMBlockHeader.fromHeaderData({
-            'number': BigInt(genesisEvmBlockNum),
-            'stateRoot': EMPTY_TRIE_BUF,
-            'gasLimit': BLOCK_GAS_LIMIT,
-            'timestamp': BigInt(genesisTimestamp),
-            'extraData': genesisBlock.id.array
-        }, {common: this.common});
+        const genesisHeader = TEVMBlockHeader.fromHeaderData(
+            {
+                number: BigInt(genesisEvmBlockNum),
+                stateRoot: EMPTY_TRIE_BUF,
+                gasLimit: BLOCK_GAS_LIMIT,
+                timestamp: BigInt(genesisTimestamp),
+                extraData: genesisBlock.id.array,
+            },
+            { common: this.common }
+        );
 
         const genesisHash = arrayToHex(genesisHeader.hash());
 
-        if (this.config.evmValidateHash != "" &&
-            genesisHash != this.config.evmValidateHash) {
-            throw new Error('FATAL!: Generated genesis hash doesn\'t match remote!');
+        if (
+            this.config.evmValidateHash != '' &&
+            genesisHash != this.config.evmValidateHash
+        ) {
+            throw new Error(
+                "FATAL!: Generated genesis hash doesn't match remote!"
+            );
         }
 
         // Init state tracking attributes
@@ -639,21 +713,21 @@ export class TEVMTranslator {
                 '@timestamp': genesisBlock.timestamp.toString(),
                 block_num: genesisBlock.block_num.toNumber(),
                 '@global': {
-                    block_num: genesisEvmBlockNum
+                    block_num: genesisEvmBlockNum,
                 },
                 '@blockHash': genesisHashHex,
                 '@evmPrevBlockHash': removeHexPrefix(ZERO_HASH),
                 '@evmBlockHash': genesisHash,
-                "@receiptsRootHash": EMPTY_TRIE,
-                "@transactionsRoot": EMPTY_TRIE,
-                "gasUsed": "0",
-                "gasLimit": BLOCK_GAS_LIMIT.toString(),
-                "size": "0"
+                '@receiptsRootHash': EMPTY_TRIE,
+                '@transactionsRoot': EMPTY_TRIE,
+                gasUsed: '0',
+                gasLimit: BLOCK_GAS_LIMIT.toString(),
+                size: '0',
             },
             nativeHash: genesisHashHex,
             parentHash: '',
             receiptsRoot: '',
-            blockBloom: ''
+            blockBloom: '',
         });
 
         this.events.emit('start');
@@ -663,11 +737,12 @@ export class TEVMTranslator {
      * Wait until all db connector write tasks finish
      */
     async _waitWriteTasks() {
-        if (!this.connector)
-            return;
+        if (!this.connector) return;
 
         while (this.connector.writeCounter > 0) {
-            this.logger.debug(`waiting for ${this.connector.writeCounter} write operations to finish...`);
+            this.logger.debug(
+                `waiting for ${this.connector.writeCounter} write operations to finish...`
+            );
             await sleep(200);
         }
     }
@@ -720,11 +795,13 @@ export class TEVMTranslator {
             try {
                 // get genesis information
                 genesisBlock = await this.rpc.v1.chain.get_block(
-                    this.startBlock - 1);
-
+                    this.startBlock - 1
+                );
             } catch (e) {
                 this.logger.error(e);
-                this.logger.warn(`couldn\'t get genesis block ${this.startBlock - 1} retrying in 5 sec...`);
+                this.logger.warn(
+                    `couldn\'t get genesis block ${this.startBlock - 1} retrying in 5 sec...`
+                );
                 await sleep(5000);
             }
         }
@@ -734,15 +811,17 @@ export class TEVMTranslator {
     /*
      * Get start parameters from last block indexed on db
      */
-    private async getBlockInfoFromLastBlock(lastBlock: StorageEosioDelta): Promise<StartBlockInfo> {
-
+    private async getBlockInfoFromLastBlock(
+        lastBlock: StorageEosioDelta
+    ): Promise<StartBlockInfo> {
         // sleep, then get last block again, if block_num changes it means
         // another indexer is running
         await sleep(3000);
         const newlastBlock = await this.connector.getLastIndexedBlock();
         if (lastBlock.block_num != newlastBlock.block_num)
             throw new Error(
-                'New last block check failed probably another indexer is running, abort...');
+                'New last block check failed probably another indexer is running, abort...'
+            );
 
         let startBlock = lastBlock.block_num;
 
@@ -757,16 +836,16 @@ export class TEVMTranslator {
         let prevHash = lastBlock['@evmBlockHash'];
 
         this.logger.info(
-            `found! ${lastBlock.block_num} produced on ${lastBlock['@timestamp']} with hash 0x${prevHash}`)
+            `found! ${lastBlock.block_num} produced on ${lastBlock['@timestamp']} with hash 0x${prevHash}`
+        );
 
-        return {startBlock, prevHash};
+        return { startBlock, prevHash };
     }
 
     /*
      * Get start parameters from first gap on database
      */
     private async getBlockInfoFromGap(gap: number): Promise<StartBlockInfo> {
-
         let firstBlock: StorageEosioDelta;
         let delta = 0;
         while (!firstBlock || firstBlock.block_num === undefined) {
@@ -774,7 +853,9 @@ export class TEVMTranslator {
             delta++;
         }
         // found blocks on the database
-        this.logger.info(`Last block of continuous range found: ${JSON.stringify(firstBlock, null, 4)}`);
+        this.logger.info(
+            `Last block of continuous range found: ${JSON.stringify(firstBlock, null, 4)}`
+        );
 
         let startBlock = firstBlock.block_num;
 
@@ -788,13 +869,16 @@ export class TEVMTranslator {
 
         let prevHash = lastBlock['@evmBlockHash'];
 
-        if (lastBlock.block_num != (startBlock - 1))
-            throw new Error(`Last block: ${lastBlock.block_num}, is not ${startBlock - 1} - 1`);
+        if (lastBlock.block_num != startBlock - 1)
+            throw new Error(
+                `Last block: ${lastBlock.block_num}, is not ${startBlock - 1} - 1`
+            );
 
         this.logger.info(
-            `found! ${lastBlock} produced on ${lastBlock['@timestamp']} with hash 0x${prevHash}`)
+            `found! ${lastBlock} produced on ${lastBlock['@timestamp']} with hash 0x${prevHash}`
+        );
 
-        return {startBlock, prevHash};
+        return { startBlock, prevHash };
     }
 
     /*
@@ -807,17 +891,21 @@ export class TEVMTranslator {
         const preCleanupPrevHash = this.prevHash;
         const preCleanupLastBlock = this.lastBlock;
 
-        this.logger.info(`got ${b.nativeBlockNumber} and expected ${this.lastBlock + 1}, chain fork detected. reverse all blocks which were affected`);
+        this.logger.info(
+            `got ${b.nativeBlockNumber} and expected ${this.lastBlock + 1}, chain fork detected. reverse all blocks which were affected`
+        );
 
         await this._waitWriteTasks();
 
         // finally purge db
         await this.connector.purgeNewerThan(lastNonForked + 1);
-        this.logger.debug(`purged db of blocks newer than ${lastNonForked}, continue...`);
+        this.logger.debug(
+            `purged db of blocks newer than ${lastNonForked}, continue...`
+        );
 
         // tweak variables used by ordering machinery
         const preCleanupHistory = structuredClone(this.sequenceHistory);
-        const {prevHash, index} = this.getOldHash(lastNonForked);
+        const { prevHash, index } = this.getOldHash(lastNonForked);
         this.sequenceHistory.splice(index + 1);
         const postCleanupHistory = structuredClone(this.sequenceHistory);
         this.prevHash = prevHash;
@@ -828,20 +916,20 @@ export class TEVMTranslator {
                 head_block: this.headBlock,
                 pre: {
                     prev_hash: preCleanupPrevHash,
-                    last_block: preCleanupLastBlock
+                    last_block: preCleanupLastBlock,
                 },
                 post: {
                     prev_hash: this.prevHash,
                     last_block: this.lastBlock,
                 },
-                stall_count: this.stallCounter
+                stall_count: this.stallCounter,
             },
             history: {
                 pre_cleanup: preCleanupHistory,
-                post_cleanup: postCleanupHistory
+                post_cleanup: postCleanupHistory,
             },
-            reader: this.reader.diagnostics
-        }
+            reader: this.reader.diagnostics,
+        };
 
         this.connector.forkCleanup(
             b.blockTimestamp,

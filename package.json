@@ -10,6 +10,7 @@
     "build": "yarn run bootstrap && npx tsc && node scripts/create-dist-packages.mjs",
     "start": "yarn run build && node build/main.js",
     "test": "mocha --timeout 120000",
+    "test-ship": "mocha --timeout 120000 --config=.mocharc-ship.json",
     "clean-deps": "rm -rdf node_modules && yarn cache clean",
     "clean-build": "rm -rdf build/**/*.js build/*.js build/**/*.map"
   },

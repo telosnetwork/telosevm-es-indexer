@@ -1,0 +1,11 @@
+{
+  "extension": [
+    "ts"
+  ],
+  "spec": "src/tests/testcontainer-nodeos-evm.spec.ts",
+  "loader": "ts-node/esm",
+  "require": [
+    "ts-node/register"
+  ],
+  "recursive": true
+}

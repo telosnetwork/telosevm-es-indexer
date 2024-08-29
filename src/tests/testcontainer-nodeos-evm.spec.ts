@@ -1,5 +1,5 @@
 import {GenericContainer, StartedTestContainer, Wait} from "testcontainers";
-import {TranslatorConfigSchema} from "../types/translator.js";
+import {TranslatorConfig, TranslatorConfigSchema} from "../types/translator.js";
 import {TEVMTranslator} from "../translator.js";
 import {ElasticsearchContainer, StartedElasticsearchContainer} from "@testcontainers/elasticsearch";
 import {Connector} from "../database/connector.js";
@@ -40,7 +40,7 @@ describe('Test Container full sync', () => {
 
     it ("should sync all", async () => {
 
-        let config = TranslatorConfigSchema.parse({
+        let config: TranslatorConfig = {
             logLevel: 'debug',
             readerLogLevel: 'debug',
             chainName: 'testcontainer-chain',
@@ -52,9 +52,11 @@ describe('Test Container full sync', () => {
             remoteEndpoint: `http://localhost:${leapContainer.getMappedPort(chainHTTPPort)}`,
             wsEndpoint: `ws://localhost:${leapContainer.getMappedPort(chainSHIPPort)}`,
             elastic: {
-                node: elasticContainer.getHttpUrl()
+                node: elasticContainer.getHttpUrl(),
+                storeRaw: true
             }
-        });
+        };
+        config = TranslatorConfigSchema.parse(config);
 
         let translator = new TEVMTranslator(config);
         await translator.launch();
@@ -71,10 +73,8 @@ describe('Test Container full sync', () => {
         let validActions = fs.readFileSync(path.join(TESTS_DIR, "testcontainer-actions-v1.5.json")).toString();
         let validDeltas = fs.readFileSync(path.join(TESTS_DIR, "testcontainer-deltas-v1.5.json")).toString();
 
-        expect(validActions, JSON.stringify(data.actions, null, 4));
-        expect(validDeltas, JSON.stringify(data.blocks, null, 4));
-        // fs.writeFileSync("/tmp/testcontainer-actions-v1.5.json", JSON.stringify(data.actions, null, 4));
-        // fs.writeFileSync("/tmp/testcontainer-deltas-v1.5.json", JSON.stringify(data.blocks, null, 4));
+        expect(validActions).to.be.eq(JSON.stringify(data.actions, null, 4));
+        expect(validDeltas).to.be.eq(JSON.stringify(data.blocks, null, 4));
     });
 
     after(async () => {

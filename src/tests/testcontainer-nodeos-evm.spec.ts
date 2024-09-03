@@ -25,7 +25,7 @@ describe('Test Container full sync', () => {
 
     before(async () => {
         leapContainer = await new GenericContainer(
-            'ghcr.io/telosnetwork/testcontainer-nodeos-evm:v0.1.6@sha256:bd1692372f42bacef7b41a398ba1a32c7cceb87240e778abee85261651faf95e'
+            'telosnetwork/testcontainer-nodeos-evm:latest'
         )
             .withExposedPorts(chainHTTPPort, chainSHIPPort)
             .withName('testcontainers-leap')
@@ -78,8 +78,8 @@ describe('Test Container full sync', () => {
         let conn = new Connector(config);
         let data = await conn.dumpAll(startBlock, stopBlock);
 
-        // fs.writeFileSync("deltas.json", JSON.stringify(data.blocks, null, 4));
-        // fs.writeFileSync("actions.json", JSON.stringify(data.actions, null, 4));
+        fs.writeFileSync("deltas.json", JSON.stringify(data.blocks, null, 4));
+        fs.writeFileSync("actions.json", JSON.stringify(data.actions, null, 4));
 
         let validationData = loadValidationData();
 

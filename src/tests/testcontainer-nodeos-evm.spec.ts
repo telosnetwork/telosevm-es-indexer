@@ -25,7 +25,7 @@ describe('Test Container full sync', () => {
 
     before(async () => {
         leapContainer = await new GenericContainer(
-            'telosnetwork/testcontainer-nodeos-evm:latest'
+            'ghcr.io/telosnetwork/testcontainer-nodeos-evm:v0.1.8@sha256:4497f37f35471606091f7a4abda1e063b6e9cbe80fd7c40c7ed76540466ea1e9'
         )
             .withExposedPorts(chainHTTPPort, chainSHIPPort)
             .withName('testcontainers-leap')

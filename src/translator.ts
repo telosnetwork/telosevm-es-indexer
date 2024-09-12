@@ -390,6 +390,7 @@ export class TEVMTranslator {
                 trx_index: evmTxs.length,
                 blockNum: currentEvmBlock,
                 tx: action.act.data,
+                paddingChar: this.config.paddingChar,
                 consoleLog: action.console,
             };
 

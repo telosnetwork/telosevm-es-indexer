@@ -59,6 +59,7 @@ export const TranslatorConfigSchema = z.object({
     startBlock: z.number(),
     stopBlock: z.number().default(-1),
     irreversibleOnly: z.boolean().default(false),
+    paddingChar: z.string().default('f'),
     perf: z
         .object({
             stallCounter: z.number().default(5),

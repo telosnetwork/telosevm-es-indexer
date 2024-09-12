@@ -78,7 +78,8 @@ export function numToHex(input: number | string) {
 export function generateUniqueVRS(
     blockHash: string,
     sender: string,
-    trx_index: number
+    trx_index: number,
+    paddingChar: string
 ): [bigint, bigint, bigint] {
     const v = BigInt(42); // why is v 42? well cause its the anwser to life
 
@@ -87,7 +88,7 @@ export function generateUniqueVRS(
 
     const r = blockHashBI + trxIndexBI;
     const s = BigInt(
-        addHexPrefix(removeHexPrefix(sender.toLowerCase()).padEnd(64, 'f'))
+        addHexPrefix(removeHexPrefix(sender.toLowerCase()).padEnd(64, paddingChar))
     );
 
     return [v, r, s];

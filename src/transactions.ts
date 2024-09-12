@@ -45,6 +45,7 @@ export interface HandlerArguments {
     trx_index: number;
     blockNum: number;
     tx: EosioEvmRaw | EosioEvmDeposit | EosioEvmWithdraw;
+    paddingChar: string;
     consoleLog?: string;
 }
 
@@ -135,7 +136,8 @@ export function createEvm(
             [v, r, s] = generateUniqueVRS(
                 args.nativeBlockHash,
                 senderAddr,
-                args.trx_index
+                args.trx_index,
+                args.paddingChar
             );
 
             evmTxParams.v = v;
@@ -355,7 +357,8 @@ export async function createDeposit(
     const [v, r, s] = generateUniqueVRS(
         args.nativeBlockHash,
         ZERO_ADDR,
-        args.trx_index
+        args.trx_index,
+        args.paddingChar
     );
 
     const txParams = {
@@ -416,7 +419,8 @@ export async function createWithdraw(
     const [v, r, s] = generateUniqueVRS(
         args.nativeBlockHash,
         address,
-        args.trx_index
+        args.trx_index,
+        args.paddingChar
     );
 
     const txParams = {
